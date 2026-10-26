@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { flash, requireAuth } from '../middleware.js';
 import { GAMES } from '../lib/catalog.js';
+import { galleryFor } from '../lib/images.js';
 import { breadcrumbJsonLd, gamePath, organizationJsonLd, productDescription, productJsonLd } from '../lib/seo.js';
 import { shopQuerySchema, stockAlertSchema } from '../lib/validation.js';
 
@@ -110,16 +111,17 @@ export function shopRoutes({ db, config, limiters }) {
       ? !!db.prepare('SELECT 1 FROM wishlist WHERE user_id = ? AND product_id = ?').get(res.locals.user.id, product.id)
       : false;
     const game = GAMES[product.game];
+    const gallery = galleryFor(db, product);
     res.render('product', {
       title: `${product.name}${product.set_name ? ` — ${product.set_name}` : ''}`,
       description: productDescription(product),
       ogType: 'product',
-      ogImage: product.image_path || null,
+      ogImage: gallery[0]?.lg.url ?? null,
       structuredData: [
-        productJsonLd(product, { baseUrl: config.baseUrl, shopName: config.shopName }),
+        productJsonLd(product, { baseUrl: config.baseUrl, shopName: config.shopName, images: gallery.map((img) => img.lg.url) }),
         breadcrumbJsonLd(config.baseUrl, [['Accueil', '/'], [game.label, gamePath(product.game)], [product.name]]),
       ],
-      product, related, inWishlist,
+      product, gallery, related, inWishlist,
     });
   });
 

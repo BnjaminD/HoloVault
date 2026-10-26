@@ -14,7 +14,7 @@
       <tbody>
         <% for (const p of products) { %>
           <tr>
-            <td><div class="thumb game-<%= p.game %>"><% if (p.image_path) { %><img src="<%= p.image_path %>" alt=""><% } else { %><%= GAMES[p.game].symbol %><% } %></div></td>
+            <td><div class="thumb game-<%= p.game %>"><% if (p.image_path) { %><img src="<%= thumbUrl(p.image_path) %>" alt="" loading="lazy"><% } else { %><%= GAMES[p.game].symbol %><% } %></div></td>
             <td><strong><%= p.name %></strong><% if (p.is_featured) { %> <span class="tag tag-rare">★</span><% } %><div class="small muted"><%= p.set_name %></div></td>
             <td><%= GAMES[p.game].label %></td>
             <td><%= CONDITIONS[p.condition]?.short %></td>

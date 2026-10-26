@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import { randomBytes } from 'node:crypto';
 import { ROOT } from './config.js';
 import * as catalog from './lib/catalog.js';
+import { thumbUrl } from './lib/images.js';
 import { gamePath, isPrivatePath, jsonLd } from './lib/seo.js';
 import { setScryptCost } from './lib/security.js';
 import { SqliteSessionStore } from './lib/session-store.js';
@@ -38,6 +39,7 @@ export function createApp({ db, config, paypal, mailer, disableRateLimit = false
     gamePath,
     isPrivatePath,
     jsonLd,
+    thumbUrl,
     paypalMode: paypal.mode,
     ...catalog,
   });

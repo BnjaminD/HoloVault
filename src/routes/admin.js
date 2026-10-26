@@ -1,24 +1,17 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { randomUUID } from 'node:crypto';
-import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { ORDER_STATUSES, slugify } from '../lib/catalog.js';
+import {
+  ImageError, MAX_IMAGES_PER_PRODUCT, galleryFor, importLegacyImage, listProductImages, processImage, removeImageFiles, syncCover,
+} from '../lib/images.js';
 import { addOrderEvent, getOrderWithItems, releaseOrder } from '../lib/orders.js';
 import { formatIssues, orderStatusSchema, productSchema, promoSchema } from '../lib/validation.js';
 import { flash, requireAdmin, requireCsrf } from '../middleware.js';
 
-const IMAGE_SIGNATURES = [
-  { ext: 'jpg', test: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
-  { ext: 'png', test: (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) },
-  { ext: 'webp', test: (b) => b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WEBP' },
-];
-
-// Trust the file's bytes, never its name or declared MIME type.
-export function detectImageType(buffer) {
-  if (!buffer || buffer.length < 12) return null;
-  return IMAGE_SIGNATURES.find((s) => s.test(buffer))?.ext ?? null;
-}
+// Kept for the security tests that exercise upload sniffing.
+export { detectImageType } from '../lib/images.js';
 
 const PAGE_SIZE = 25;
 const FINAL_STATUSES = ['cancelled', 'refunded'];
@@ -28,15 +21,15 @@ export function adminRoutes({ db, config, mailer }) {
   mkdirSync(config.uploadDir, { recursive: true });
   const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 40, fieldSize: 10_000 },
-  }).single('image');
+    limits: { fileSize: 10 * 1024 * 1024, files: MAX_IMAGES_PER_PRODUCT, fields: 40 + 3 * MAX_IMAGES_PER_PRODUCT, fieldSize: 10_000 },
+  }).array('images', MAX_IMAGES_PER_PRODUCT);
 
   const parseMultipart = (req, res, next) =>
     upload(req, res, (err) => {
       if (!err) return next();
       if (err instanceof multer.MulterError) {
         err.status = 400;
-        flash(req, 'error', err.code === 'LIMIT_FILE_SIZE' ? 'Image trop lourde (5 Mo maximum).' : 'Envoi de fichier invalide.');
+        flash(req, 'error', { LIMIT_FILE_SIZE: 'Image trop lourde (10 Mo maximum).', LIMIT_FILE_COUNT: `${MAX_IMAGES_PER_PRODUCT} photos maximum.`, LIMIT_UNEXPECTED_FILE: `${MAX_IMAGES_PER_PRODUCT} photos maximum.` }[err.code] ?? 'Envoi de fichier invalide.');
         return res.redirect(req.originalUrl);
       }
       next(err);
@@ -71,29 +64,54 @@ export function adminRoutes({ db, config, mailer }) {
   });
 
   const renderForm = (res, product, errors = [], status = 200) =>
-    res.status(status).render('admin/product-form', { title: product.id ? 'Modifier le produit' : 'Nouveau produit', product, errors });
+    res.status(status).render('admin/product-form', {
+      title: product.id ? 'Modifier le produit' : 'Nouveau produit',
+      product,
+      gallery: product.id ? galleryFor(db, product) : [],
+      maxImages: MAX_IMAGES_PER_PRODUCT,
+      errors,
+    });
 
   router.get('/produits/nouveau', (req, res) =>
     renderForm(res, { game: 'pokemon', category: 'single', condition: 'near_mint', language: 'FR', active: 1, stock: 1 }),
   );
 
-  function saveImage(file) {
-    if (!file) return null;
-    const ext = detectImageType(file.buffer);
-    if (!ext) throw Object.assign(new Error('Format d’image non supporté (JPG, PNG ou WebP uniquement).'), { userFacing: true });
-    const name = `${randomUUID()}.${ext}`;
-    writeFileSync(join(config.uploadDir, name), file.buffer, { mode: 0o644 });
-    return `/uploads/${name}`;
+  function removeLegacyFile(path) {
+    if (!/^\/uploads\/[0-9a-f-]{36}\.(jpg|png|webp)$/.test(path ?? '')) return;
+    rmSync(join(config.uploadDir, basename(path)), { force: true });
   }
 
-  function removeImage(path) {
-    if (!path?.startsWith('/uploads/')) return;
+  // Re-encodes the uploaded files; on any failure, already written variants are removed.
+  async function processUploads(files = []) {
+    const done = [];
     try {
-      unlinkSync(join(config.uploadDir, basename(path)));
-    } catch {
-      /* already gone */
+      for (const file of files) done.push(await processImage(file.buffer, config.uploadDir));
+    } catch (err) {
+      for (const img of done) removeImageFiles(config.uploadDir, img.key);
+      throw err;
     }
+    return done;
   }
+
+  // Applies the gallery part of the form: removals, captions, cover choice, then new photos appended.
+  // Must run inside the product transaction; returns the file keys to delete once it has committed.
+  function saveGallery(productId, body, uploaded) {
+    const current = listProductImages(db, productId);
+    const removed = current.filter((img) => body[`remove_${img.id}`] === 'on');
+    const kept = current.filter((img) => !removed.includes(img));
+    const coverId = Number(body.cover);
+    kept.sort((a, b) => (b.id === coverId) - (a.id === coverId));
+    const del = db.prepare('DELETE FROM product_images WHERE id = ?');
+    for (const img of removed) del.run(img.id);
+    const update = db.prepare('UPDATE product_images SET position = ?, alt = ? WHERE id = ?');
+    kept.forEach((img, i) => update.run(i, String(body[`alt_${img.id}`] ?? img.alt).trim().slice(0, 120), img.id));
+    const insert = db.prepare('INSERT INTO product_images (product_id, file_key, position, width, height, created_at) VALUES (?, ?, ?, ?, ?, ?)');
+    uploaded.forEach((img, i) => insert.run(productId, img.key, kept.length + i, img.width, img.height, Date.now()));
+    syncCover(db, productId);
+    return removed.map((img) => img.file_key);
+  }
+
+  const tooManyImages = (count) => `${MAX_IMAGES_PER_PRODUCT} photos maximum par produit (${count} demandées).`;
 
   function uniqueSlug(name, ignoreId = 0) {
     const base = slugify(name) || 'produit';
@@ -113,25 +131,33 @@ export function adminRoutes({ db, config, mailer }) {
     };
   }
 
-  router.post('/produits', parseMultipart, requireCsrf, (req, res) => {
+  router.post('/produits', parseMultipart, requireCsrf, async (req, res) => {
     const parsed = productSchema.safeParse(req.body);
     if (!parsed.success) return renderForm(res, productValues(req.body), formatIssues(parsed.error), 400);
-    let image;
+    let uploaded;
     try {
-      image = saveImage(req.file);
+      uploaded = await processUploads(req.files);
     } catch (err) {
-      if (err.userFacing) return renderForm(res, productValues(req.body), [err.message], 400);
+      if (err instanceof ImageError) return renderForm(res, productValues(req.body), [err.message], 400);
       throw err;
     }
     const d = parsed.data;
-    db.prepare(
-      `INSERT INTO products (slug, name, game, category, set_name, card_number, rarity, condition, language, grading, description,
-         price_cents, stock, is_featured, image_path, active, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      uniqueSlug(d.name), d.name, d.game, d.category, d.setName, d.cardNumber, d.rarity, d.condition, d.language, d.grading,
-      d.description, Math.round(d.price * 100), d.stock, d.isFeatured ? 1 : 0, image ?? '', d.active ? 1 : 0, Date.now(),
-    );
+    try {
+      db.transaction(() => {
+        const { lastInsertRowid } = db.prepare(
+          `INSERT INTO products (slug, name, game, category, set_name, card_number, rarity, condition, language, grading, description,
+             price_cents, stock, is_featured, active, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ).run(
+          uniqueSlug(d.name), d.name, d.game, d.category, d.setName, d.cardNumber, d.rarity, d.condition, d.language, d.grading,
+          d.description, Math.round(d.price * 100), d.stock, d.isFeatured ? 1 : 0, d.active ? 1 : 0, Date.now(),
+        );
+        saveGallery(Number(lastInsertRowid), {}, uploaded);
+      })();
+    } catch (err) {
+      for (const img of uploaded) removeImageFiles(config.uploadDir, img.key);
+      throw err;
+    }
     flash(req, 'success', 'Produit créé.');
     res.redirect('/admin/produits');
   });
@@ -142,37 +168,56 @@ export function adminRoutes({ db, config, mailer }) {
     renderForm(res, product);
   });
 
-  router.post('/produits/:id', parseMultipart, requireCsrf, (req, res, next) => {
-    const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(Number(req.params.id));
+  router.post('/produits/:id', parseMultipart, requireCsrf, async (req, res, next) => {
+    let existing = db.prepare('SELECT * FROM products WHERE id = ?').get(Number(req.params.id));
     if (!existing) return next();
+    const formError = (errors) => renderForm(res, { ...productValues(req.body), id: existing.id, image_path: existing.image_path }, errors, 400);
     const parsed = productSchema.safeParse(req.body);
-    if (!parsed.success) return renderForm(res, { ...productValues(req.body), id: existing.id, image_path: existing.image_path }, formatIssues(parsed.error), 400);
-    let image;
+    if (!parsed.success) return formError(formatIssues(parsed.error));
+
+    // A pre-gallery photo joins the gallery first, unless the admin asked to drop it.
+    if (req.body.removeLegacyImage === 'on') {
+      removeLegacyFile(existing.image_path);
+      db.prepare("UPDATE products SET image_path = '' WHERE id = ?").run(existing.id);
+    } else if (await importLegacyImage(db, config.uploadDir, existing).catch(() => false)) {
+      flash(req, 'info', 'L’ancienne photo a été convertie et ajoutée à la galerie.');
+    }
+    existing = db.prepare('SELECT * FROM products WHERE id = ?').get(existing.id);
+
+    const current = listProductImages(db, existing.id);
+    const remaining = current.filter((img) => req.body[`remove_${img.id}`] !== 'on').length + (req.files?.length ?? 0);
+    if (remaining > MAX_IMAGES_PER_PRODUCT) return formError([tooManyImages(remaining)]);
+    let uploaded;
     try {
-      image = saveImage(req.file);
+      uploaded = await processUploads(req.files);
     } catch (err) {
-      if (err.userFacing) return renderForm(res, { ...productValues(req.body), id: existing.id, image_path: existing.image_path }, [err.message], 400);
+      if (err instanceof ImageError) return formError([err.message]);
       throw err;
     }
     const d = parsed.data;
-    const removeCurrent = req.body.removeImage === 'on';
-    const imagePath = image ?? (removeCurrent ? '' : existing.image_path);
-    if (image || removeCurrent) removeImage(existing.image_path);
     const slug = d.name === existing.name ? existing.slug : uniqueSlug(d.name, existing.id);
-    db.transaction(() => {
-      if (slug !== existing.slug) {
-        db.prepare('INSERT OR REPLACE INTO product_slug_history (slug, product_id, created_at) VALUES (?, ?, ?)').run(existing.slug, existing.id, Date.now());
-        db.prepare('DELETE FROM product_slug_history WHERE slug = ?').run(slug);
-      }
-      db.prepare(
-        `UPDATE products SET slug = ?, name = ?, game = ?, category = ?, set_name = ?, card_number = ?, rarity = ?, condition = ?, language = ?,
-           grading = ?, description = ?, price_cents = ?, stock = ?, is_featured = ?, image_path = ?, active = ?, updated_at = ? WHERE id = ?`,
-      ).run(
-        slug, d.name, d.game, d.category, d.setName, d.cardNumber,
-        d.rarity, d.condition, d.language, d.grading, d.description, Math.round(d.price * 100), d.stock, d.isFeatured ? 1 : 0,
-        imagePath, d.active ? 1 : 0, Date.now(), existing.id,
-      );
-    })();
+    let deletedKeys;
+    try {
+      deletedKeys = db.transaction(() => {
+        if (slug !== existing.slug) {
+          db.prepare('INSERT OR REPLACE INTO product_slug_history (slug, product_id, created_at) VALUES (?, ?, ?)').run(existing.slug, existing.id, Date.now());
+          db.prepare('DELETE FROM product_slug_history WHERE slug = ?').run(slug);
+        }
+        db.prepare(
+          `UPDATE products SET slug = ?, name = ?, game = ?, category = ?, set_name = ?, card_number = ?, rarity = ?, condition = ?, language = ?,
+             grading = ?, description = ?, price_cents = ?, stock = ?, is_featured = ?, active = ?, updated_at = ? WHERE id = ?`,
+        ).run(
+          slug, d.name, d.game, d.category, d.setName, d.cardNumber,
+          d.rarity, d.condition, d.language, d.grading, d.description, Math.round(d.price * 100), d.stock, d.isFeatured ? 1 : 0,
+          d.active ? 1 : 0, Date.now(), existing.id,
+        );
+        return saveGallery(existing.id, req.body, uploaded);
+      })();
+    } catch (err) {
+      for (const img of uploaded) removeImageFiles(config.uploadDir, img.key);
+      throw err;
+    }
+    for (const key of deletedKeys) removeImageFiles(config.uploadDir, key);
 
     if (existing.stock === 0 && d.stock > 0 && d.active) {
       const product = db.prepare('SELECT * FROM products WHERE id = ?').get(existing.id);

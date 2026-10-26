@@ -41,7 +41,7 @@ export function breadcrumbJsonLd(baseUrl, items) {
   };
 }
 
-export function productJsonLd(p, { baseUrl, shopName }) {
+export function productJsonLd(p, { baseUrl, shopName, images = p.image_path ? [p.image_path] : [] }) {
   const url = absoluteUrl(baseUrl, `/produit/${p.slug}`);
   // Sealed products and mint singles are sold as new; anything that has been handled is "used" for Google.
   const isNew = p.category === 'sealed' || p.category === 'accessory' || p.condition === 'mint';
@@ -54,7 +54,7 @@ export function productJsonLd(p, { baseUrl, shopName }) {
     ...(p.card_number && p.card_number !== '—' ? { mpn: p.card_number } : {}),
     category: [GAMES[p.game]?.label, CATEGORIES[p.category]].filter(Boolean).join(' > '),
     brand: { '@type': 'Brand', name: GAMES[p.game]?.label },
-    ...(p.image_path ? { image: [absoluteUrl(baseUrl, p.image_path)] } : {}),
+    ...(images.length ? { image: images.map((path) => absoluteUrl(baseUrl, path)) } : {}),
     url,
     offers: {
       '@type': 'Offer',

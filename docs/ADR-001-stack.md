@@ -37,3 +37,10 @@ Hébergement visé : VPS Hetzner (Node.js déjà utilisé pour d'autres projets)
 
 - Moins de « magie » de framework : chaque protection est visible et testée.
 - SQLite impose une seule instance d'application (suffisant pour une boutique de niche).
+
+## Avenant — 2026-10-26 : traitement des images
+
+Ajout de **sharp** (libvips, binaires précompilés) pour la galerie multi-photos : chaque upload est décodé puis
+ré-encodé en WebP (3 tailles), ce qui supprime les métadonnées (GPS, appareil) et neutralise tout contenu caché
+dans le fichier d'origine, jamais conservé. Entrées limitées à 50 Mpx (protection contre les « bombes de
+décompression »), 10 Mo et 10 photos par produit, upload réservé aux administrateurs.

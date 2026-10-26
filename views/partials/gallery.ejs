@@ -1,0 +1,37 @@
+<%
+  const g = GAMES[product.game] || {};
+  const holo = product.is_featured || product.category === 'graded';
+  const altOf = (img, i) => product.name + (img.alt ? ` — ${img.alt}` : i > 0 ? ` — photo ${i + 1}` : '');
+  const srcsetOf = (img) => `${img.md.url} ${img.md.width}w, ${img.lg.url} ${img.lg.width}w`;
+  const first = gallery[0];
+%>
+<div class="gallery" data-gallery>
+  <div class="tcg-card gallery-main game-<%= product.game %><%= holo ? ' is-holo' : '' %>">
+    <a href="<%= first.lg.url %>" data-zoom aria-label="Agrandir la photo">
+      <img src="<%= first.md.url %>" <% if (!first.legacy) { %>srcset="<%= srcsetOf(first) %>" sizes="(max-width: 900px) 340px, 420px"<% } %>
+        width="<%= first.md.width %>" height="<%= first.md.height %>" alt="<%= altOf(first, 0) %>" fetchpriority="high" decoding="async">
+    </a>
+  </div>
+  <% if (gallery.length > 1) { %>
+    <ul class="gallery-thumbs" aria-label="Photos de <%= product.name %>">
+      <% gallery.forEach((img, i) => { %>
+        <li>
+          <a href="<%= img.lg.url %>" data-thumb data-md="<%= img.md.url %>" data-srcset="<%= srcsetOf(img) %>"
+            data-width="<%= img.md.width %>" data-height="<%= img.md.height %>" data-alt="<%= altOf(img, i) %>"
+            <%- i === 0 ? 'aria-current="true"' : '' %> aria-label="Photo <%= i + 1 %> sur <%= gallery.length %>">
+            <img src="<%= img.sm.url %>" width="<%= img.sm.width %>" height="<%= img.sm.height %>" alt="" loading="lazy" decoding="async">
+          </a>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>
+<dialog class="lightbox" data-lightbox aria-label="Photo agrandie">
+  <button class="icon-btn lightbox-close" type="button" data-lightbox-close aria-label="Fermer">✕</button>
+  <% if (gallery.length > 1) { %>
+    <button class="icon-btn lightbox-prev" type="button" data-lightbox-step="-1" aria-label="Photo précédente">‹</button>
+    <button class="icon-btn lightbox-next" type="button" data-lightbox-step="1" aria-label="Photo suivante">›</button>
+  <% } %>
+  <img alt="">
+  <p class="lightbox-hint small">Touchez ou cliquez la photo pour zoomer</p>
+</dialog>

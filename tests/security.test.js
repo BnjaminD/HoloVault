@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { readdirSync } from 'node:fs';
+import sharp from 'sharp';
 import { describe, it } from 'node:test';
 import { addProduct, addUser, checkout, csrf, login, request, setup } from './helpers.js';
 import { detectImageType } from '../src/routes/admin.js';
 import { safeRedirectPath } from '../src/lib/security.js';
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d, 0x49, 0x48, 0x44, 0x52]);
+const REAL_PNG = await sharp({ create: { width: 63, height: 88, channels: 3, background: '#8b6cff' } }).png().toBuffer();
 
 async function adminAgent(ctx) {
   const admin = await addUser(ctx.db, { email: 'admin@example.com', role: 'admin' });
@@ -183,20 +185,23 @@ describe('back-office', () => {
         .post('/admin/produits')
         .field('_csrf', token)
         .field({ name: `Produit ${filename}`, game: 'pokemon', category: 'single', condition: 'mint', language: 'FR', price: '10', stock: '1', active: 'on' })
-        .attach('image', buffer, { filename, contentType });
+        .attach('images', buffer, { filename, contentType });
     const bad = await send(Buffer.from('<?php system($_GET["c"]); ?><script>alert(1)</script>'), 'shell.php.png', 'image/png');
     assert.equal(bad.status, 400);
-    const ok = await send(PNG, 'carte.png', 'image/png');
+    const truncated = await send(PNG, 'tronquee.png', 'image/png');
+    assert.equal(truncated.status, 400, 'signature PNG valide mais image illisible');
+    assert.deepEqual(readdirSync(ctx.config.uploadDir), [], 'rien n’est écrit pour un fichier refusé');
+    const ok = await send(REAL_PNG, 'carte.png', 'image/png');
     assert.equal(ok.status, 302);
-    const files = readdirSync(ctx.config.uploadDir);
-    assert.equal(files.length, 1);
-    assert.match(files[0], /^[0-9a-f-]{36}\.png$/, 'nom aléatoire, jamais celui fourni');
+    const files = readdirSync(ctx.config.uploadDir).sort();
+    assert.equal(files.length, 3);
+    for (const f of files) assert.match(f, /^[0-9a-f-]{36}-(lg|md|sm)\.webp$/, 'ré-encodé en WebP, nom aléatoire, jamais celui fourni');
   });
 
   it('upload sans jeton CSRF refusé', async () => {
     const ctx = setup();
     const admin = await adminAgent(ctx);
-    const res = await admin.post('/admin/produits').field('name', 'x').attach('image', PNG, 'a.png');
+    const res = await admin.post('/admin/produits').field('name', 'x').attach('images', REAL_PNG, 'a.png');
     assert.equal(res.status, 403);
   });
 });

@@ -8,7 +8,7 @@
 
   <div class="product-layout">
     <div class="product-visual" data-tilt>
-      <%- include('partials/card-art', { p: product }) %>
+      <% if (gallery.length) { %><%- include('partials/gallery') %><% } else { %><%- include('partials/card-art', { p: product }) %><% } %>
     </div>
 
     <div>

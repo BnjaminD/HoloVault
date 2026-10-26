@@ -83,7 +83,15 @@ sudo -u holovault rm -f data/shop.db-wal data/shop.db-shm
 sudo systemctl start holovault
 ```
 
-## 5. Supervision
+## 5. Photos produits
+
+- Stockées dans `UPLOAD_DIR` (`data/uploads`) sous la forme `<uuid>-{sm,md,lg}.webp` (240, 800 et 1600 px) ;
+  la table `product_images` en garde l'ordre et les légendes.
+- Les produits créés avant la galerie (une seule photo `<uuid>.jpg|png|webp`) restent affichés tels quels ;
+  leur photo est convertie automatiquement à leur prochain enregistrement dans le back-office.
+- `sharp` est installé avec des binaires précompilés (Linux x64/arm64, glibc ou musl) : rien à compiler sur le VPS.
+
+## 6. Supervision
 
 - `GET /healthz` → `{"status":"ok"}` (200) ou 503 si la base est inaccessible. À brancher sur un moniteur externe
   (UptimeRobot, Better Stack…).

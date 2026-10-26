@@ -14,7 +14,7 @@
           <div class="cart-line">
             <a href="/produit/<%= l.product.slug %>" aria-hidden="true" tabindex="-1">
               <% if (l.product.image_path) { %>
-                <div class="tcg-card"><img src="<%= l.product.image_path %>" alt=""></div>
+                <div class="tcg-card"><img src="<%= thumbUrl(l.product.image_path) %>" alt="" loading="lazy"></div>
               <% } else { %>
                 <div class="tcg-card game-<%= l.product.game %>"><span class="art-symbol-mini"><%= GAMES[l.product.game].symbol %></span></div>
               <% } %>
