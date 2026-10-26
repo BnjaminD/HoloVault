@@ -112,6 +112,20 @@ describe('filtres', () => {
     assert.deepEqual(names(html), ['Lotus'], 'extension insensible à la casse');
   });
 
+  it('formulaire soumis avec des champs vides : ignorés (régression « prix max 0 € »)', async () => {
+    const { app, db } = setup();
+    product(db, { name: 'Lotus', game: 'magic', language: 'EN', price_cents: 5000 });
+    const form = 'q=&game=magic&category=&condition=&set=&lang=EN&grader=&minPrice=&maxPrice=';
+    let res = await request(app).get(`/boutique?${form}`);
+    assert.equal(res.status, 302);
+    assert.equal(res.headers.location, '/boutique?game=magic&lang=EN');
+    res = await request(app).get('/boutique?game=magic&lang=EN');
+    assert.deepEqual(names(res.text), ['Lotus']);
+    res = await request(app).get('/boutique?q=&game=magic&minPrice=&maxPrice=');
+    assert.equal(res.headers.location, '/boutique?game=magic', 'puis 301 vers /boutique/magic');
+    assert.equal((await request(app).get('/boutique/magic?minPrice= ')).headers.location, '/boutique/magic');
+  });
+
   it('filtres actifs affichés en puces retirables, page en noindex', async () => {
     const { app, db } = setup();
     product(db, { name: 'Lotus', game: 'magic', language: 'EN' });

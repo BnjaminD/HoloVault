@@ -60,13 +60,18 @@ export const cartUpdateSchema = z.object({
   quantity: z.coerce.number().int().min(0).max(99),
 });
 
+const priceBound = z
+  .preprocess((v) => (typeof v === 'string' && v.trim() === '' ? undefined : v), z.coerce.number().min(0).max(1_000_000).optional())
+  .catch(undefined);
+
 export const shopQuerySchema = z.object({
   q: z.string().trim().max(80).catch(''),
   game: z.enum(keys(GAMES)).optional().catch(undefined),
   category: z.enum(keys(CATEGORIES)).optional().catch(undefined),
   condition: z.enum(keys(CONDITIONS)).optional().catch(undefined),
-  minPrice: z.coerce.number().min(0).max(1_000_000).optional().catch(undefined),
-  maxPrice: z.coerce.number().min(0).max(1_000_000).optional().catch(undefined),
+  // An empty field means "no bound": z.coerce.number('') would otherwise give 0 (and "max 0 €" hides everything).
+  minPrice: priceBound,
+  maxPrice: priceBound,
   inStock: z.literal('1').optional().catch(undefined),
   set: z.string().trim().max(120).optional().catch(undefined).transform((v) => v || undefined),
   lang: z.enum(keys(LANGUAGES)).optional().catch(undefined),

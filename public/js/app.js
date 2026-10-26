@@ -215,6 +215,12 @@
     searchInput.addEventListener('blur', () => setTimeout(close, 100));
   }
 
+  // On phones the filter panel starts folded so products are visible first (it stays open without JS).
+  const mobile = matchMedia('(max-width: 900px)');
+  document.querySelectorAll('details[data-collapse-mobile]').forEach((d) => {
+    if (mobile.matches) d.open = false;
+  });
+
   // Flash messages fade away on their own.
   document.querySelectorAll('.flash-stack .alert').forEach((el, i) => {
     setTimeout(() => el.remove(), 5000 + i * 800);

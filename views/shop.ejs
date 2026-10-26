@@ -9,8 +9,9 @@
   </div>
 
   <div class="shop-layout">
-    <details class="filters panel" open>
-      <summary class="filter-toggle btn btn-block">Filtres</summary>
+    <details class="filters panel" open data-collapse-mobile>
+      <% const activeCount = ['q', 'category', 'condition', 'set', 'lang', 'grader', 'minPrice', 'maxPrice', 'inStock'].filter((k) => filters[k] != null && filters[k] !== '').length; %>
+      <summary class="filter-toggle btn btn-block">Filtres<%= activeCount ? ` (${activeCount} actif${activeCount > 1 ? 's' : ''})` : '' %></summary>
       <form class="filters-body" action="/boutique" method="get">
         <div class="field">
           <label for="f-q">Recherche</label>

@@ -26,6 +26,16 @@ export function shopRoutes({ db, config, limiters }) {
     });
   });
 
+  // A submitted filter form sends every field, empty ones included (?q=&category=&minPrice=…):
+  // redirect to the same listing without them, so URLs stay short, shareable and comparable.
+  function dropEmptyParams(req, res, next) {
+    const raw = new URL(req.originalUrl, 'http://x').searchParams;
+    const kept = new URLSearchParams([...raw].filter(([, v]) => v.trim() !== ''));
+    if (kept.size === raw.size) return next();
+    res.redirect(302, req.path + (kept.size ? `?${kept}` : ''));
+  }
+  router.get(['/boutique', '/boutique/:game'], dropEmptyParams);
+
   // Old filter URL for a whole game → permanent redirect to its dedicated page.
   router.get('/boutique', (req, res, next) => {
     const f = shopQuerySchema.parse(req.query);
