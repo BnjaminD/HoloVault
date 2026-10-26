@@ -1,0 +1,68 @@
+<%- include('partials/head') %>
+<div class="container">
+  <nav class="breadcrumbs" aria-label="Fil d’Ariane">
+    <% if (guest) { %><span>Suivi de commande</span><% } else { %><a href="/compte">Mon compte</a><span aria-hidden="true">›</span><span>Commande</span><% } %>
+  </nav>
+  <div class="section-head">
+    <div>
+      <span class="eyebrow">Commande du <%= new Date(order.created_at).toLocaleDateString('fr-FR', { dateStyle: 'long' }) %></span>
+      <h1><%= order.reference %></h1>
+    </div>
+    <span class="status status-<%= order.status %>"><%= ORDER_STATUSES[order.status] %></span>
+  </div>
+
+  <div class="two-col">
+    <div class="stack">
+      <section class="panel">
+        <h2>Articles</h2>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Article</th><th class="num">Qté</th><th class="num">Prix</th></tr></thead>
+            <tbody>
+              <% for (const i of order.items) { %>
+                <tr><td><%= i.name %></td><td class="num"><%= i.quantity %></td><td class="num"><%= formatPrice(i.unit_price_cents * i.quantity) %></td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+        <div class="summary-row"><span>Sous-total</span><span><%= formatPrice(order.subtotal_cents) %></span></div>
+        <% if (order.discount_cents) { %><div class="summary-row"><span>Réduction (<%= order.promo_code %>)</span><span>−<%= formatPrice(order.discount_cents) %></span></div><% } %>
+        <div class="summary-row"><span>Livraison (<%= SHIPPING_METHODS[order.shipping_method]?.label %>)</span><span><%= order.shipping_cents ? formatPrice(order.shipping_cents) : 'Offerte' %></span></div>
+        <div class="summary-row summary-total"><span>Total</span><span><%= formatPrice(order.total_cents) %></span></div>
+      </section>
+
+      <section class="panel">
+        <h2>Livraison</h2>
+        <p>
+          <%= order.first_name %> <%= order.last_name %><br>
+          <%= order.address_line1 %><br>
+          <% if (order.address_line2) { %><%= order.address_line2 %><br><% } %>
+          <%= order.postal_code %> <%= order.city %>, <%= COUNTRIES[order.country] %>
+        </p>
+        <% if (order.tracking_number) { %>
+          <p><span class="label">Numéro de suivi :</span> <strong><%= order.tracking_number %></strong></p>
+        <% } %>
+      </section>
+    </div>
+
+    <aside class="panel summary">
+      <h2>Historique</h2>
+      <ol class="timeline">
+        <% for (const e of order.events) { %>
+          <li>
+            <strong><%= ORDER_STATUSES[e.status] %></strong>
+            <div class="small muted"><%= new Date(e.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) %></div>
+            <% if (e.note) { %><div class="small"><%= e.note %></div><% } %>
+          </li>
+        <% } %>
+      </ol>
+      <% if (guest) { %>
+        <form action="/deconnexion" method="post">
+          <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+          <button class="btn btn-ghost btn-block btn-sm" type="submit">Fermer le suivi</button>
+        </form>
+      <% } %>
+    </aside>
+  </div>
+</div>
+<%- include('partials/foot') %>

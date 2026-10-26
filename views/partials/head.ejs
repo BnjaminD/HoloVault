@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title ? `${title} — ${shopName}` : shopName %></title>
+  <meta name="description" content="<%= locals.description || 'Cartes Pokémon, Yu-Gi-Oh!, Magic, One Piece et Lorcana : cartes rares, gradées et produits scellés. Expédition protégée sous 24 h.' %>">
+  <% if (user) { %><meta name="csrf-token" content="<%= csrfToken() %>"><% } %>
+  <meta name="theme-color" content="#0a0c16">
+  <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script nonce="<%= nonce %>">try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<a class="skip-link" href="#contenu">Aller au contenu</a>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="logo" href="/" aria-label="<%= shopName %> — accueil"><span class="logo-mark" aria-hidden="true"></span><%= shopName %></a>
+    <nav class="main-nav" aria-label="Navigation principale">
+      <a href="/boutique" <%- currentPath === '/boutique' && !locals.filters?.game ? 'aria-current="page"' : '' %>>Boutique</a>
+      <% for (const key of ['pokemon', 'yugioh', 'magic', 'onepiece']) { %>
+        <a href="/boutique?game=<%= key %>" <%- locals.filters?.game === key ? 'aria-current="page"' : '' %>><%= GAMES[key].label.split(':')[0] %></a>
+      <% } %>
+    </nav>
+    <form class="header-search" action="/boutique" method="get" role="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <label class="sr-only" for="q-header">Rechercher une carte</label>
+      <input id="q-header" type="search" name="q" placeholder="Dracaufeu, Blue-Eyes, Black Lotus…" value="<%= locals.filters?.q || '' %>" maxlength="80">
+    </form>
+    <div class="header-actions">
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Changer de thème">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+      <% if (user && user.role === 'admin') { %>
+        <a class="icon-btn" href="/admin" aria-label="Administration" title="Administration">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        </a>
+      <% } %>
+      <a class="icon-btn" href="<%= user ? '/compte' : (guestOrderRef ? '/suivi' : '/connexion') %>" aria-label="<%= user ? 'Mon compte' : (guestOrderRef ? 'Suivi de ma commande' : 'Connexion') %>" title="<%= user ? 'Mon compte' : (guestOrderRef ? 'Suivi de ma commande' : 'Connexion') %>">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+      </a>
+      <a class="icon-btn" href="/panier" aria-label="Panier (<%= cartCount %> article<%= cartCount > 1 ? 's' : '' %>)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 7h12l-1 13H7L6 7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>
+        <% if (cartCount > 0) { %><span class="badge-count"><%= cartCount %></span><% } %>
+      </a>
+      <details class="mobile-menu">
+        <summary class="icon-btn" aria-label="Menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </summary>
+        <nav class="mobile-panel" aria-label="Navigation mobile">
+          <form action="/boutique" method="get" role="search"><input type="search" name="q" placeholder="Rechercher une carte…" aria-label="Rechercher" maxlength="80"></form>
+          <a href="/boutique">Toute la boutique</a>
+          <% for (const [key, g] of Object.entries(GAMES)) { %><a href="/boutique?game=<%= key %>"><%= g.symbol %> <%= g.label %></a><% } %>
+          <a href="<%= user ? '/compte' : '/connexion' %>"><%= user ? 'Mon compte' : 'Connexion / Suivi de commande' %></a>
+        </nav>
+      </details>
+    </div>
+  </div>
+</header>
+<% if (flashes.length) { %>
+  <div class="flash-stack" role="status" aria-live="polite">
+    <% for (const f of flashes) { %><div class="alert alert-<%= f.type %>"><%= f.message %></div><% } %>
+  </div>
+<% } %>
+<main id="contenu">

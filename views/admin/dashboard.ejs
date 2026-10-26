@@ -1,0 +1,43 @@
+<%- include('../partials/head') %>
+<%- include('_nav') %>
+<div class="container section">
+  <h1>Tableau de bord</h1>
+  <div class="stat-grid">
+    <div class="stat"><span>Chiffre d’affaires (30 j)</span><strong><%= formatPrice(stats.revenue30) %></strong></div>
+    <div class="stat"><span>Chiffre d’affaires total</span><strong><%= formatPrice(stats.revenue) %></strong></div>
+    <div class="stat"><span>À expédier</span><strong><%= stats.toShip %></strong></div>
+    <div class="stat"><span>Commandes</span><strong><%= stats.orders %></strong></div>
+    <div class="stat"><span>Clients inscrits</span><strong><%= stats.customers %></strong></div>
+    <div class="stat"><span>Produits en ligne</span><strong><%= stats.products %></strong></div>
+  </div>
+
+  <div class="two-col">
+    <section class="panel">
+      <div class="panel-title"><h2>Dernières commandes</h2><a class="btn btn-sm" href="/admin/commandes">Tout voir</a></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Réf.</th><th>Client</th><th>Statut</th><th class="num">Total</th></tr></thead>
+          <tbody>
+            <% for (const o of recent) { %>
+              <tr>
+                <td><a href="/admin/commandes/<%= o.id %>"><strong><%= o.reference %></strong></a></td>
+                <td><%= o.first_name %> <%= o.last_name %><% if (!o.user_id) { %> <span class="tag">invité</span><% } %></td>
+                <td><span class="status status-<%= o.status %>"><%= ORDER_STATUSES[o.status] %></span></td>
+                <td class="num"><%= formatPrice(o.total_cents) %></td>
+              </tr>
+            <% } %>
+            <% if (!recent.length) { %><tr><td colspan="4" class="muted">Aucune commande.</td></tr><% } %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-title"><h2>Stock faible</h2></div>
+      <% for (const p of lowStock) { %>
+        <div class="summary-row small"><a href="/admin/produits/<%= p.id %>"><%= p.name %></a><span class="tag <%= p.stock === 0 ? 'tag-stock-out' : 'tag-stock-low' %>"><%= p.stock %></span></div>
+      <% } %>
+      <% if (!lowStock.length) { %><p class="muted small">Tout est bien approvisionné.</p><% } %>
+    </section>
+  </div>
+</div>
+<%- include('../partials/foot') %>

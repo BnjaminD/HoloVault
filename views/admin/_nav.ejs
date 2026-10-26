@@ -1,0 +1,9 @@
+<div class="admin-bar">
+  <nav class="container" aria-label="Administration">
+    <a href="/admin" class="<%= currentPath === '/admin' || currentPath === '/admin/' ? 'active' : '' %>">📊 Tableau de bord</a>
+    <a href="/admin/commandes" class="<%= currentPath.startsWith('/admin/commandes') ? 'active' : '' %>">📦 Commandes</a>
+    <a href="/admin/produits" class="<%= currentPath.startsWith('/admin/produits') ? 'active' : '' %>">🃏 Produits</a>
+    <a href="/admin/promos" class="<%= currentPath.startsWith('/admin/promos') ? 'active' : '' %>">🏷️ Codes promo</a>
+    <a href="/">↗ Voir la boutique</a>
+  </nav>
+</div>

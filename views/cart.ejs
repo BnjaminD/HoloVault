@@ -1,0 +1,64 @@
+<%- include('partials/head') %>
+<div class="container">
+  <h1 class="section">Votre panier</h1>
+  <% if (!lines.length) { %>
+    <div class="empty panel">
+      <div class="big" aria-hidden="true">🃏</div>
+      <p>Votre panier est vide… pour l’instant.</p>
+      <a class="btn btn-primary" href="/boutique">Découvrir les cartes</a>
+    </div>
+  <% } else { %>
+    <div class="two-col">
+      <div class="panel">
+        <% for (const l of lines) { %>
+          <div class="cart-line">
+            <a href="/produit/<%= l.product.slug %>" aria-hidden="true" tabindex="-1">
+              <% if (l.product.image_path) { %>
+                <div class="tcg-card"><img src="<%= l.product.image_path %>" alt=""></div>
+              <% } else { %>
+                <div class="tcg-card game-<%= l.product.game %>"><span class="art-symbol-mini"><%= GAMES[l.product.game].symbol %></span></div>
+              <% } %>
+            </a>
+            <div>
+              <a href="/produit/<%= l.product.slug %>"><strong><%= l.product.name %></strong></a>
+              <div class="small muted"><%= GAMES[l.product.game].label %> · <%= formatPrice(l.product.price_cents) %> l’unité</div>
+            </div>
+            <form action="/panier" method="post">
+              <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+              <input type="hidden" name="productId" value="<%= l.product.id %>">
+              <label class="sr-only" for="q<%= l.product.id %>">Quantité</label>
+              <input id="q<%= l.product.id %>" type="number" name="quantity" value="<%= l.quantity %>" min="0" max="<%= Math.min(l.product.stock, MAX_QTY_PER_LINE) %>">
+              <button class="btn btn-sm" type="submit">OK</button>
+            </form>
+            <div class="num">
+              <strong><%= formatPrice(l.lineCents) %></strong>
+              <form action="/panier" method="post">
+                <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+                <input type="hidden" name="productId" value="<%= l.product.id %>">
+                <input type="hidden" name="quantity" value="0">
+                <button class="btn btn-ghost btn-sm" type="submit" aria-label="Retirer <%= l.product.name %>">Retirer</button>
+              </form>
+            </div>
+          </div>
+        <% } %>
+      </div>
+
+      <aside class="panel summary" aria-label="Récapitulatif">
+        <h2>Récapitulatif</h2>
+        <div class="summary-row"><span>Sous-total</span><span><%= formatPrice(quote.subtotal) %></span></div>
+        <div class="summary-row"><span>Livraison</span><span class="muted">calculée à l’étape suivante</span></div>
+        <% if (quote.freeShippingRemaining > 0) { %>
+          <p class="small muted">Plus que <strong><%= formatPrice(quote.freeShippingRemaining) %></strong> pour la livraison offerte !</p>
+          <progress class="progress" max="<%= FREE_SHIPPING_THRESHOLD_CENTS %>" value="<%= FREE_SHIPPING_THRESHOLD_CENTS - quote.freeShippingRemaining %>"></progress>
+        <% } else { %>
+          <p class="small tag-ok">🎉 Livraison standard offerte</p>
+        <% } %>
+        <div class="summary-row summary-total"><span>Total estimé</span><span><%= formatPrice(quote.subtotal) %></span></div>
+        <a class="btn btn-primary btn-block" href="/commande">Passer commande</a>
+        <p class="secure-note">🔒 Paiement 100 % sécurisé via PayPal</p>
+        <% if (!user) { %><p class="small muted">Pas de compte ? Aucun souci : vous pourrez commander en invité.</p><% } %>
+      </aside>
+    </div>
+  <% } %>
+</div>
+<%- include('partials/foot') %>

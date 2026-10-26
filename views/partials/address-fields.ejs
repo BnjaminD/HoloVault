@@ -1,0 +1,37 @@
+<div class="field">
+  <label for="firstName">Prénom</label>
+  <input id="firstName" name="firstName" type="text" autocomplete="given-name" required maxlength="60" value="<%= v.firstName || '' %>">
+</div>
+<div class="field">
+  <label for="lastName">Nom</label>
+  <input id="lastName" name="lastName" type="text" autocomplete="family-name" required maxlength="60" value="<%= v.lastName || '' %>">
+</div>
+<div class="field full">
+  <label for="addressLine1">Adresse</label>
+  <input id="addressLine1" name="addressLine1" type="text" autocomplete="address-line1" required minlength="3" maxlength="120" value="<%= v.addressLine1 || '' %>">
+</div>
+<div class="field full">
+  <label for="addressLine2">Complément <span class="muted">(facultatif)</span></label>
+  <input id="addressLine2" name="addressLine2" type="text" autocomplete="address-line2" maxlength="120" value="<%= v.addressLine2 || '' %>">
+</div>
+<div class="field">
+  <label for="postalCode">Code postal</label>
+  <input id="postalCode" name="postalCode" type="text" autocomplete="postal-code" required pattern="[A-Za-z0-9 \-]{3,10}" maxlength="10" value="<%= v.postalCode || '' %>">
+</div>
+<div class="field">
+  <label for="city">Ville</label>
+  <input id="city" name="city" type="text" autocomplete="address-level2" required maxlength="80" value="<%= v.city || '' %>">
+</div>
+<div class="field">
+  <label for="country">Pays</label>
+  <select id="country" name="country" autocomplete="country" required>
+    <% for (const [code, label] of Object.entries(COUNTRIES)) { %>
+      <option value="<%= code %>" <%= (v.country || 'FR') === code ? 'selected' : '' %>><%= label %></option>
+    <% } %>
+  </select>
+</div>
+<div class="field">
+  <label for="phone">Téléphone</label>
+  <input id="phone" name="phone" type="tel" autocomplete="tel" required pattern="[+0-9 \(\)\.\-]{6,20}" maxlength="20" value="<%= v.phone || '' %>">
+  <span class="hint">Utilisé uniquement par le transporteur.</span>
+</div>

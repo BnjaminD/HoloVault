@@ -1,0 +1,41 @@
+<%- include('../partials/head') %>
+<%- include('_nav') %>
+<div class="container section">
+  <div class="section-head">
+    <h1>Commandes</h1>
+    <form action="/admin/commandes" method="get">
+      <label class="sr-only" for="status">Statut</label>
+      <select id="status" name="status" data-autosubmit>
+        <option value="">Toutes (hors non payées)</option>
+        <% for (const [k, l] of Object.entries(ORDER_STATUSES)) { %><option value="<%= k %>" <%= status === k ? 'selected' : '' %>><%= l %></option><% } %>
+      </select>
+      <noscript><button class="btn btn-sm" type="submit">Filtrer</button></noscript>
+    </form>
+  </div>
+  <div class="panel table-wrap">
+    <table class="table">
+      <thead><tr><th>Réf.</th><th>Date</th><th>Client</th><th>Livraison</th><th>Statut</th><th class="num">Total</th></tr></thead>
+      <tbody>
+        <% for (const o of orders) { %>
+          <tr>
+            <td><a href="/admin/commandes/<%= o.id %>"><strong><%= o.reference %></strong></a></td>
+            <td><%= new Date(o.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) %></td>
+            <td><%= o.first_name %> <%= o.last_name %><div class="small muted"><%= o.email %></div></td>
+            <td><%= SHIPPING_METHODS[o.shipping_method]?.label %></td>
+            <td><span class="status status-<%= o.status %>"><%= ORDER_STATUSES[o.status] %></span></td>
+            <td class="num"><%= formatPrice(o.total_cents) %></td>
+          </tr>
+        <% } %>
+        <% if (!orders.length) { %><tr><td colspan="6" class="muted">Aucune commande.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+  <% if (pages > 1) { %>
+    <nav class="pagination" aria-label="Pagination">
+      <% for (let i = 1; i <= pages; i++) { %>
+        <% if (i === page) { %><span aria-current="page"><%= i %></span><% } else { %><a href="/admin/commandes?<%= status ? 'status=' + status + '&' : '' %>page=<%= i %>"><%= i %></a><% } %>
+      <% } %>
+    </nav>
+  <% } %>
+</div>
+<%- include('../partials/foot') %>

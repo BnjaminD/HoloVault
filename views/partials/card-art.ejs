@@ -1,0 +1,12 @@
+<% const g = GAMES[p.game] || {}; const holo = p.is_featured || p.category === 'graded'; %>
+<div class="tcg-card game-<%= p.game %><%= holo ? ' is-holo' : '' %>">
+  <% if (p.image_path) { %>
+    <img src="<%= p.image_path %>" alt="<%= p.name %>" loading="lazy" decoding="async" width="630" height="880">
+  <% } else { %>
+    <div class="art-frame" aria-hidden="true">
+      <span class="art-game"><%= g.label %></span>
+      <span class="art-symbol"><%= g.symbol %></span>
+      <span class="art-name"><%= p.name %></span>
+    </div>
+  <% } %>
+</div>

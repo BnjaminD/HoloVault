@@ -1,0 +1,32 @@
+<%- include('../partials/head') %>
+<%- include('_nav') %>
+<div class="container section">
+  <div class="section-head">
+    <h1>Produits</h1>
+    <div class="filters-row">
+      <form action="/admin/produits" method="get"><input type="search" name="q" value="<%= q %>" placeholder="Rechercher…" aria-label="Rechercher un produit" maxlength="80"></form>
+      <a class="btn btn-primary" href="/admin/produits/nouveau">+ Nouveau</a>
+    </div>
+  </div>
+  <div class="panel table-wrap">
+    <table class="table">
+      <thead><tr><th></th><th>Nom</th><th>Jeu</th><th>État</th><th class="num">Prix</th><th class="num">Stock</th><th>Statut</th><th></th></tr></thead>
+      <tbody>
+        <% for (const p of products) { %>
+          <tr>
+            <td><div class="thumb game-<%= p.game %>"><% if (p.image_path) { %><img src="<%= p.image_path %>" alt=""><% } else { %><%= GAMES[p.game].symbol %><% } %></div></td>
+            <td><strong><%= p.name %></strong><% if (p.is_featured) { %> <span class="tag tag-rare">★</span><% } %><div class="small muted"><%= p.set_name %></div></td>
+            <td><%= GAMES[p.game].label %></td>
+            <td><%= CONDITIONS[p.condition]?.short %></td>
+            <td class="num"><%= formatPrice(p.price_cents) %></td>
+            <td class="num"><span class="<%= p.stock === 0 ? 'tag tag-stock-out' : '' %>"><%= p.stock %></span></td>
+            <td><%= p.active ? 'En ligne' : 'Archivé' %></td>
+            <td class="num"><a class="btn btn-sm" href="/admin/produits/<%= p.id %>">Modifier</a></td>
+          </tr>
+        <% } %>
+        <% if (!products.length) { %><tr><td colspan="8" class="muted">Aucun produit.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('../partials/foot') %>

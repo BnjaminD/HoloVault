@@ -1,0 +1,86 @@
+<%- include('partials/head') %>
+<div class="container">
+  <div class="section">
+    <div class="checkout-steps"><span>Panier</span><span>›</span><span class="on">Livraison &amp; paiement</span><span>›</span><span>Confirmation</span></div>
+    <h1>Finaliser la commande</h1>
+    <% if (!user) { %>
+      <p class="muted">Vous avez un compte ? <a class="holo-text" href="/connexion?next=/commande"><strong>Connectez-vous</strong></a> pour pré-remplir vos informations. Sinon, commandez en invité : vous recevrez une référence et un numéro de commande pour suivre votre colis.</p>
+    <% } %>
+  </div>
+
+  <% const v = profile ? { email: profile.email, firstName: profile.first_name, lastName: profile.last_name, phone: profile.phone, addressLine1: profile.address_line1, addressLine2: profile.address_line2, postalCode: profile.postal_code, city: profile.city, country: profile.country } : {}; %>
+
+  <form id="checkout-form" class="two-col" autocomplete="on">
+    <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+    <div class="stack">
+      <section class="panel">
+        <h2>Coordonnées</h2>
+        <div class="form-grid">
+          <div class="field full">
+            <label for="email">E-mail</label>
+            <input id="email" name="email" type="email" autocomplete="email" required maxlength="254" value="<%= v.email || '' %>">
+            <span class="hint">Pour la confirmation et le suivi de votre commande.</span>
+          </div>
+          <%- include('partials/address-fields', { v }) %>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Livraison</h2>
+        <div class="ship-options">
+          <% for (const [key, m] of Object.entries(SHIPPING_METHODS)) { %>
+            <label class="ship-option">
+              <input type="radio" name="shippingMethod" value="<%= key %>" <%= quote.shippingMethod === key ? 'checked' : '' %> required>
+              <span class="grow"><strong><%= m.label %></strong><br><span class="small muted"><%= m.detail %></span></span>
+              <strong><%= key !== 'express' && quote.subtotal >= FREE_SHIPPING_THRESHOLD_CENTS ? 'Offerte' : formatPrice(m.cents) %></strong>
+            </label>
+          <% } %>
+        </div>
+        <div class="field">
+          <label for="note">Note pour la boutique <span class="muted">(facultatif)</span></label>
+          <textarea id="note" name="note" maxlength="500" placeholder="Ex. : merci d’envoyer en double toploader"></textarea>
+        </div>
+      </section>
+    </div>
+
+    <aside class="panel summary" aria-label="Récapitulatif de commande">
+      <h2>Votre commande</h2>
+      <% for (const l of lines) { %>
+        <div class="summary-row small"><span><%= l.quantity %> × <%= l.product.name %></span><span><%= formatPrice(l.lineCents) %></span></div>
+      <% } %>
+      <hr class="sep">
+      <div class="field">
+        <label for="promoCode">Code promo</label>
+        <div class="filters-row">
+          <input id="promoCode" name="promoCode" type="text" maxlength="30" autocomplete="off">
+          <button class="btn btn-sm" type="button" id="apply-promo">Appliquer</button>
+        </div>
+        <span id="promo-msg" class="small" aria-live="polite"></span>
+      </div>
+      <div class="summary-row"><span>Sous-total</span><span id="q-subtotal"><%= formatPrice(quote.subtotal) %></span></div>
+      <div class="summary-row" id="q-discount-row" hidden><span>Réduction</span><span id="q-discount"></span></div>
+      <div class="summary-row"><span>Livraison</span><span id="q-shipping"><%= quote.shipping ? formatPrice(quote.shipping) : 'Offerte' %></span></div>
+      <div class="summary-row summary-total"><span>Total TTC</span><span id="q-total"><%= formatPrice(quote.total) %></span></div>
+
+      <label class="checkbox">
+        <input type="checkbox" name="acceptTerms" required>
+        <span>J’accepte les <a href="/cgv" target="_blank" rel="noopener">conditions générales de vente</a>.</span>
+      </label>
+
+      <div id="checkout-error" class="alert alert-error" role="alert" hidden></div>
+
+      <% if (paypalMode === 'mock') { %>
+        <div class="alert alert-info small">Mode simulation (développement) : aucun paiement réel.</div>
+        <button class="btn btn-holo btn-block" type="button" id="mock-pay">Payer <%= formatPrice(quote.total) %> (simulation)</button>
+      <% } else { %>
+        <div id="paypal-buttons"></div>
+      <% } %>
+      <p class="secure-note">🔒 Paiement chiffré et traité par PayPal. Nous ne voyons jamais vos données bancaires.</p>
+    </aside>
+  </form>
+</div>
+<% if (paypalMode !== 'mock') { %>
+  <script src="https://www.paypal.com/sdk/js?client-id=<%= encodeURIComponent(paypalClientId) %>&currency=EUR&intent=capture&locale=fr_FR&components=buttons" data-csp-nonce="<%= nonce %>" nonce="<%= nonce %>"></script>
+<% } %>
+<script src="/static/js/checkout.js" defer></script>
+<%- include('partials/foot') %>

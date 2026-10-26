@@ -1,0 +1,46 @@
+<%- include('partials/head') %>
+<div class="container auth-wrap">
+  <div class="panel">
+    <h1>Connexion</h1>
+    <div class="tabs" role="tablist">
+      <a href="/connexion<%= next ? '?next=' + encodeURIComponent(next) : '' %>" role="tab" aria-selected="<%= mode === 'account' %>">Mon compte</a>
+      <a href="/connexion?mode=commande" role="tab" aria-selected="<%= mode === 'order' %>">Suivi de commande</a>
+    </div>
+
+    <%- include('partials/errors') %>
+
+    <% if (mode === 'account') { %>
+      <form class="stack" action="/connexion" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+        <input type="hidden" name="next" value="<%= next %>">
+        <div class="field">
+          <label for="email">E-mail</label>
+          <input id="email" name="email" type="email" autocomplete="username" required maxlength="254" value="<%= values.email || '' %>" autofocus>
+        </div>
+        <div class="field">
+          <label for="password">Mot de passe</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="128">
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Se connecter</button>
+      </form>
+      <div class="divider">Nouveau client ?</div>
+      <a class="btn btn-block" href="/inscription">Créer un compte</a>
+      <p class="small muted">Vous pouvez aussi commander sans compte : il suffit d’ajouter des cartes au panier.</p>
+    <% } else { %>
+      <p class="muted small">Vous avez commandé sans compte ? Saisissez la <strong>référence</strong> et le <strong>numéro de commande</strong> reçus lors de votre achat.</p>
+      <form class="stack" action="/connexion/commande" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+        <div class="field">
+          <label for="reference">Référence de commande</label>
+          <input id="reference" name="reference" type="text" autocomplete="username" required maxlength="20" placeholder="HV-XXXXXXXX" value="<%= values.reference || '' %>" autofocus>
+        </div>
+        <div class="field">
+          <label for="code">Numéro de commande</label>
+          <input id="code" name="code" type="password" autocomplete="current-password" required maxlength="30" placeholder="XXXX-XXXX-XXXX">
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Accéder à ma commande</button>
+      </form>
+    <% } %>
+  </div>
+</div>
+<%- include('partials/foot') %>

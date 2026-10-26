@@ -1,0 +1,71 @@
+<%- include('../partials/head') %>
+<%- include('_nav') %>
+<div class="container section">
+  <div class="section-head">
+    <div>
+      <span class="eyebrow"><%= new Date(order.created_at).toLocaleString('fr-FR') %></span>
+      <h1><%= order.reference %></h1>
+    </div>
+    <span class="status status-<%= order.status %>"><%= ORDER_STATUSES[order.status] %></span>
+  </div>
+  <div class="two-col">
+    <div class="stack">
+      <section class="panel">
+        <h2>Articles</h2>
+        <table class="table">
+          <thead><tr><th>Article</th><th class="num">Qté</th><th class="num">P.U.</th><th class="num">Total</th></tr></thead>
+          <tbody>
+            <% for (const i of order.items) { %>
+              <tr><td><%= i.name %></td><td class="num"><%= i.quantity %></td><td class="num"><%= formatPrice(i.unit_price_cents) %></td><td class="num"><%= formatPrice(i.unit_price_cents * i.quantity) %></td></tr>
+            <% } %>
+          </tbody>
+        </table>
+        <div class="summary-row"><span>Sous-total</span><span><%= formatPrice(order.subtotal_cents) %></span></div>
+        <% if (order.discount_cents) { %><div class="summary-row"><span>Réduction <%= order.promo_code %></span><span>−<%= formatPrice(order.discount_cents) %></span></div><% } %>
+        <div class="summary-row"><span>Livraison — <%= SHIPPING_METHODS[order.shipping_method]?.label %></span><span><%= formatPrice(order.shipping_cents) %></span></div>
+        <div class="summary-row summary-total"><span>Total</span><span><%= formatPrice(order.total_cents) %></span></div>
+        <p class="small muted">PayPal : commande <%= order.paypal_order_id || '—' %> · capture <%= order.paypal_capture_id || '—' %></p>
+      </section>
+      <section class="panel">
+        <h2>Client &amp; livraison</h2>
+        <p>
+          <strong><%= order.first_name %> <%= order.last_name %></strong> <%= order.user_id ? '' : '(invité)' %><br>
+          <%= order.email %> · <%= order.phone %><br>
+          <%= order.address_line1 %><br>
+          <% if (order.address_line2) { %><%= order.address_line2 %><br><% } %>
+          <%= order.postal_code %> <%= order.city %>, <%= COUNTRIES[order.country] %>
+        </p>
+        <% if (order.customer_note) { %><div class="alert alert-info"><strong>Note du client :</strong> <%= order.customer_note %></div><% } %>
+      </section>
+    </div>
+    <aside class="stack">
+      <section class="panel">
+        <h2>Mettre à jour</h2>
+        <form class="stack" action="/admin/commandes/<%= order.id %>/statut" method="post">
+          <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+          <div class="field">
+            <label for="status">Statut</label>
+            <select id="status" name="status">
+              <% for (const [k, l] of Object.entries(ORDER_STATUSES)) { if (k === 'pending_payment' && order.status !== k) continue; %>
+                <option value="<%= k %>" <%= order.status === k ? 'selected' : '' %>><%= l %></option>
+              <% } %>
+            </select>
+          </div>
+          <div class="field"><label for="trackingNumber">N° de suivi</label><input id="trackingNumber" name="trackingNumber" type="text" maxlength="60" value="<%= order.tracking_number %>"></div>
+          <div class="field"><label for="note">Note (visible par le client)</label><input id="note" name="note" type="text" maxlength="300"></div>
+          <button class="btn btn-primary" type="submit">Enregistrer</button>
+          <p class="small muted">Un e-mail est envoyé au client à chaque changement de statut. Les remboursements se font depuis votre compte PayPal.</p>
+        </form>
+      </section>
+      <section class="panel">
+        <h2>Historique</h2>
+        <ol class="timeline">
+          <% for (const e of order.events) { %>
+            <li><strong><%= ORDER_STATUSES[e.status] %></strong><div class="small muted"><%= new Date(e.created_at).toLocaleString('fr-FR') %></div><% if (e.note) { %><div class="small"><%= e.note %></div><% } %></li>
+          <% } %>
+        </ol>
+      </section>
+    </aside>
+  </div>
+</div>
+<%- include('../partials/foot') %>

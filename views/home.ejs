@@ -1,0 +1,78 @@
+<%- include('partials/head') %>
+<section class="hero">
+  <div class="container hero-grid">
+    <div>
+      <span class="eyebrow">Boutique de collectionneurs</span>
+      <h1>Les cartes qui font <span class="holo-text">briller</span> une collection.</h1>
+      <p class="lead">Pièces rares, cartes gradées et produits scellés Pokémon, Yu-Gi-Oh!, Magic, One Piece et Lorcana. Chaque carte est contrôlée à la main, protégée et expédiée sous 24 h.</p>
+      <div class="hero-cta">
+        <a class="btn btn-holo" href="#raretes">Voir les pièces rares</a>
+        <a class="btn" href="/boutique">Explorer la boutique</a>
+      </div>
+      <div class="hero-stats">
+        <div><strong><%= Object.values(gameCounts).reduce((a, b) => a + b, 0) %>+</strong><span>références</span></div>
+        <div><strong>24 h</strong><span>expédition</span></div>
+        <div><strong>100 %</strong><span>authentiques</span></div>
+      </div>
+    </div>
+    <div class="hero-cards" aria-hidden="true">
+      <% for (const p of featured.slice(0, 3)) { %><%- include('partials/card-art', { p: { ...p, is_featured: 1 } }) %><% } %>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="raretes">
+  <div class="container">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">★ Sélection</span>
+        <h2>Pièces rares du moment</h2>
+      </div>
+      <a class="btn btn-ghost btn-sm" href="/boutique?sort=price_desc">Toutes les raretés →</a>
+    </div>
+    <% if (featured.length) { %>
+      <div class="product-grid">
+        <% for (const p of featured) { %><%- include('partials/product-card', { p }) %><% } %>
+      </div>
+    <% } else { %>
+      <p class="empty">Les prochaines pièces rares arrivent bientôt.</p>
+    <% } %>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head"><div><span class="eyebrow">Univers</span><h2>Choisissez votre jeu</h2></div></div>
+    <div class="game-tiles">
+      <% for (const [key, g] of Object.entries(GAMES)) { %>
+        <a class="game-tile game-<%= key %>" href="/boutique?game=<%= key %>">
+          <span class="sym" aria-hidden="true"><%= g.symbol %></span>
+          <strong><%= g.label %></strong>
+          <span><%= gameCounts[key] || 0 %> référence<%= (gameCounts[key] || 0) > 1 ? 's' : '' %></span>
+        </a>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container trust-strip">
+    <div class="trust-item"><span class="ico" aria-hidden="true">🛡️</span><div><strong>Authenticité garantie</strong><span>Chaque carte vérifiée, remboursée si contrefaçon.</span></div></div>
+    <div class="trust-item"><span class="ico" aria-hidden="true">📦</span><div><strong>Envoi ultra-protégé</strong><span>Sleeve, toploader et carton rigide.</span></div></div>
+    <div class="trust-item"><span class="ico" aria-hidden="true">💳</span><div><strong>Paiement sécurisé</strong><span>PayPal ou carte bancaire via PayPal.</span></div></div>
+    <div class="trust-item"><span class="ico" aria-hidden="true">🚚</span><div><strong>Livraison offerte</strong><span>Dès <%= formatPrice(FREE_SHIPPING_THRESHOLD_CENTS) %> d’achat.</span></div></div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <div><span class="eyebrow">Nouveautés</span><h2>Derniers arrivages</h2></div>
+      <a class="btn btn-ghost btn-sm" href="/boutique">Tout voir →</a>
+    </div>
+    <div class="product-grid">
+      <% for (const p of latest) { %><%- include('partials/product-card', { p }) %><% } %>
+    </div>
+  </div>
+</section>
+<%- include('partials/foot') %>

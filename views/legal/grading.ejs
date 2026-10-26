@@ -1,0 +1,16 @@
+<%- include('../partials/head') %>
+<article class="container prose">
+  <h1>Guide des états de cartes</h1>
+  <p>Chaque carte est examinée à la lumière, recto et verso, avant sa mise en vente. Voici notre échelle :</p>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>État</th><th>Abrév.</th><th>Description</th></tr></thead>
+      <tbody>
+        <% for (const c of Object.values(CONDITIONS)) { %><tr><td><strong><%= c.label %></strong></td><td><%= c.short %></td><td><%= c.hint %></td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+  <h2>Cartes gradées</h2>
+  <p>Les cartes gradées (PSA, BGS, CGC, PCA) sont vendues dans leur boîtier scellé d’origine. Le numéro de certification est vérifiable sur le site de l’organisme.</p>
+</article>
+<%- include('../partials/foot') %>

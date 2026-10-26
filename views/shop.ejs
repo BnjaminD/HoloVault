@@ -1,0 +1,90 @@
+<%- include('partials/head') %>
+<div class="container">
+  <div class="section-head">
+    <div>
+      <span class="eyebrow"><%= filters.game ? GAMES[filters.game].symbol + ' ' + GAMES[filters.game].label : 'Catalogue' %></span>
+      <h1><%= filters.q ? `Résultats pour « ${filters.q} »` : (filters.game ? GAMES[filters.game].label : 'Toute la boutique') %></h1>
+    </div>
+  </div>
+
+  <div class="shop-layout">
+    <details class="filters panel" open>
+      <summary class="filter-toggle btn btn-block">Filtres</summary>
+      <form class="filters-body" action="/boutique" method="get">
+        <div class="field">
+          <label for="f-q">Recherche</label>
+          <input id="f-q" type="search" name="q" value="<%= filters.q %>" maxlength="80" placeholder="Nom, extension, numéro…">
+        </div>
+        <div class="field">
+          <label for="f-game">Jeu</label>
+          <select id="f-game" name="game">
+            <option value="">Tous les jeux</option>
+            <% for (const [k, g] of Object.entries(GAMES)) { %><option value="<%= k %>" <%= filters.game === k ? 'selected' : '' %>><%= g.label %></option><% } %>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-cat">Type</label>
+          <select id="f-cat" name="category">
+            <option value="">Tous les types</option>
+            <% for (const [k, label] of Object.entries(CATEGORIES)) { %><option value="<%= k %>" <%= filters.category === k ? 'selected' : '' %>><%= label %></option><% } %>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-cond">État minimum</label>
+          <select id="f-cond" name="condition">
+            <option value="">Tous les états</option>
+            <% for (const [k, c] of Object.entries(CONDITIONS)) { %><option value="<%= k %>" <%= filters.condition === k ? 'selected' : '' %>><%= c.label %> (<%= c.short %>)</option><% } %>
+          </select>
+        </div>
+        <div class="field">
+          <span class="label">Prix (€)</span>
+          <div class="filters-row">
+            <input type="number" name="minPrice" min="0" step="1" placeholder="Min" aria-label="Prix minimum" value="<%= filters.minPrice ?? '' %>">
+            <input type="number" name="maxPrice" min="0" step="1" placeholder="Max" aria-label="Prix maximum" value="<%= filters.maxPrice ?? '' %>">
+          </div>
+        </div>
+        <div class="field">
+          <label class="checkbox"><input type="checkbox" name="inStock" value="1" <%= filters.inStock ? 'checked' : '' %>> En stock uniquement</label>
+        </div>
+        <input type="hidden" name="sort" value="<%= filters.sort %>">
+        <div class="field"><button class="btn btn-primary btn-block" type="submit">Appliquer</button></div>
+        <div class="field"><a class="btn btn-ghost btn-block btn-sm" href="/boutique">Réinitialiser</a></div>
+      </form>
+    </details>
+
+    <section aria-label="Produits">
+      <div class="shop-toolbar">
+        <span class="muted"><%= total %> produit<%= total > 1 ? 's' : '' %></span>
+        <form action="/boutique" method="get">
+          <% for (const [k, v] of new URLSearchParams(baseQuery)) { if (k !== 'sort') { %><input type="hidden" name="<%= k %>" value="<%= v %>"><% } } %>
+          <label class="sr-only" for="sort">Trier par</label>
+          <select id="sort" name="sort" data-autosubmit>
+            <option value="new" <%= filters.sort === 'new' ? 'selected' : '' %>>Nouveautés</option>
+            <option value="price_asc" <%= filters.sort === 'price_asc' ? 'selected' : '' %>>Prix croissant</option>
+            <option value="price_desc" <%= filters.sort === 'price_desc' ? 'selected' : '' %>>Prix décroissant</option>
+            <option value="name" <%= filters.sort === 'name' ? 'selected' : '' %>>Nom (A→Z)</option>
+          </select>
+          <noscript><button class="btn btn-sm" type="submit">Trier</button></noscript>
+        </form>
+      </div>
+
+      <% if (products.length) { %>
+        <div class="product-grid">
+          <% for (const p of products) { %><%- include('partials/product-card', { p }) %><% } %>
+        </div>
+      <% } else { %>
+        <div class="empty"><div class="big" aria-hidden="true">🔍</div><p>Aucune carte ne correspond à ces critères.</p><a class="btn" href="/boutique">Voir toute la boutique</a></div>
+      <% } %>
+
+      <% if (pages > 1) { %>
+        <nav class="pagination" aria-label="Pagination">
+          <% for (let i = 1; i <= pages; i++) { %>
+            <% if (i === page) { %><span aria-current="page"><%= i %></span>
+            <% } else { %><a href="/boutique?<%= baseQuery ? baseQuery + '&' : '' %>page=<%= i %>"><%= i %></a><% } %>
+          <% } %>
+        </nav>
+      <% } %>
+    </section>
+  </div>
+</div>
+<%- include('partials/foot') %>

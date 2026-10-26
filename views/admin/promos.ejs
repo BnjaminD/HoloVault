@@ -1,0 +1,43 @@
+<%- include('../partials/head') %>
+<%- include('_nav') %>
+<div class="container section">
+  <h1>Codes promo</h1>
+  <%- include('../partials/errors') %>
+  <div class="two-col">
+    <section class="panel table-wrap">
+      <table class="table">
+        <thead><tr><th>Code</th><th class="num">Remise</th><th class="num">Utilisations</th><th>Expiration</th><th>Statut</th><th></th></tr></thead>
+        <tbody>
+          <% for (const p of promos) { %>
+            <tr>
+              <td><strong><%= p.code %></strong></td>
+              <td class="num">−<%= p.percent_off %> %</td>
+              <td class="num"><%= p.uses %><%= p.max_uses ? ' / ' + p.max_uses : '' %></td>
+              <td><%= p.expires_at ? new Date(p.expires_at).toLocaleDateString('fr-FR') : '—' %></td>
+              <td><%= p.active ? 'Actif' : 'Désactivé' %></td>
+              <td class="num">
+                <form action="/admin/promos/<%= encodeURIComponent(p.code) %>/basculer" method="post">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+                  <button class="btn btn-sm" type="submit"><%= p.active ? 'Désactiver' : 'Activer' %></button>
+                </form>
+              </td>
+            </tr>
+          <% } %>
+          <% if (!promos.length) { %><tr><td colspan="6" class="muted">Aucun code.</td></tr><% } %>
+        </tbody>
+      </table>
+    </section>
+    <section class="panel">
+      <h2>Nouveau code</h2>
+      <form class="stack" action="/admin/promos" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+        <div class="field"><label for="code">Code</label><input id="code" name="code" type="text" required pattern="[A-Za-z0-9_\-]{3,30}" maxlength="30"></div>
+        <div class="field"><label for="percentOff">Remise (%)</label><input id="percentOff" name="percentOff" type="number" min="1" max="90" required></div>
+        <div class="field"><label for="maxUses">Utilisations max <span class="muted">(vide = illimité)</span></label><input id="maxUses" name="maxUses" type="number" min="1"></div>
+        <div class="field"><label for="expiresAt">Expire le <span class="muted">(facultatif)</span></label><input id="expiresAt" name="expiresAt" type="date"></div>
+        <button class="btn btn-primary" type="submit">Créer</button>
+      </form>
+    </section>
+  </div>
+</div>
+<%- include('../partials/foot') %>

@@ -1,0 +1,94 @@
+<%- include('partials/head') %>
+<div class="container">
+  <div class="account-layout">
+    <nav class="side-nav" aria-label="Mon compte">
+      <a href="/compte?onglet=commandes" class="<%= tab === 'commandes' ? 'active' : '' %>">📦 Mes commandes</a>
+      <a href="/compte?onglet=favoris" class="<%= tab === 'favoris' ? 'active' : '' %>">♥ Favoris (<%= wishlist.length %>)</a>
+      <a href="/compte?onglet=profil" class="<%= tab === 'profil' ? 'active' : '' %>">👤 Mes informations</a>
+      <a href="/compte?onglet=securite" class="<%= tab === 'securite' ? 'active' : '' %>">🔒 Sécurité</a>
+      <form action="/deconnexion" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+        <button type="submit">↩ Déconnexion</button>
+      </form>
+    </nav>
+
+    <div>
+      <h1>Bonjour <%= profile.first_name %></h1>
+      <%- include('partials/errors') %>
+
+      <% if (tab === 'commandes') { %>
+        <section class="panel">
+          <h2>Mes commandes</h2>
+          <% if (!orders.length) { %>
+            <div class="empty"><p>Aucune commande pour le moment.</p><a class="btn btn-primary" href="/boutique">Découvrir la boutique</a></div>
+          <% } else { %>
+            <div class="table-wrap">
+              <table class="table">
+                <thead><tr><th>Référence</th><th>Date</th><th>Statut</th><th class="num">Total</th><th></th></tr></thead>
+                <tbody>
+                  <% for (const o of orders) { %>
+                    <tr>
+                      <td><strong><%= o.reference %></strong></td>
+                      <td><%= new Date(o.created_at).toLocaleDateString('fr-FR') %></td>
+                      <td><span class="status status-<%= o.status %>"><%= ORDER_STATUSES[o.status] %></span></td>
+                      <td class="num"><%= formatPrice(o.total_cents) %></td>
+                      <td class="num"><a class="btn btn-sm" href="/compte/commandes/<%= o.reference %>">Détails</a></td>
+                    </tr>
+                  <% } %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </section>
+      <% } else if (tab === 'favoris') { %>
+        <section>
+          <h2>Mes favoris</h2>
+          <% if (!wishlist.length) { %>
+            <div class="empty panel"><p>Ajoutez des cartes à vos favoris depuis leur fiche produit.</p></div>
+          <% } else { %>
+            <div class="product-grid">
+              <% for (const p of wishlist) { %><%- include('partials/product-card', { p }) %><% } %>
+            </div>
+          <% } %>
+        </section>
+      <% } else if (tab === 'profil') { %>
+        <section class="panel">
+          <h2>Mes informations</h2>
+          <p class="muted small">E-mail du compte : <strong><%= profile.email %></strong></p>
+          <form action="/compte/profil" method="post">
+            <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+            <div class="form-grid">
+              <%- include('partials/address-fields', { v: { firstName: profile.first_name, lastName: profile.last_name, phone: profile.phone, addressLine1: profile.address_line1, addressLine2: profile.address_line2, postalCode: profile.postal_code, city: profile.city, country: profile.country } }) %>
+              <div class="field full"><button class="btn btn-primary" type="submit">Enregistrer</button></div>
+            </div>
+          </form>
+        </section>
+      <% } else { %>
+        <section class="panel">
+          <h2>Changer de mot de passe</h2>
+          <form class="stack" action="/compte/mot-de-passe" method="post">
+            <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+            <div class="field"><label for="currentPassword">Mot de passe actuel</label><input id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required maxlength="128"></div>
+            <div class="form-grid">
+              <div class="field"><label for="newPassword">Nouveau mot de passe</label><input id="newPassword" name="newPassword" type="password" autocomplete="new-password" required minlength="10" maxlength="128"></div>
+              <div class="field"><label for="newPasswordConfirm">Confirmation</label><input id="newPasswordConfirm" name="newPasswordConfirm" type="password" autocomplete="new-password" required minlength="10" maxlength="128"></div>
+            </div>
+            <button class="btn btn-primary" type="submit">Mettre à jour</button>
+          </form>
+        </section>
+        <% if (profile.role !== 'admin') { %>
+          <section class="panel stack">
+            <h2>Supprimer mon compte</h2>
+            <p class="muted small">Vos données personnelles seront effacées. Les factures sont conservées le temps imposé par la loi.</p>
+            <form class="filters-row" action="/compte/supprimer" method="post" data-confirm="Supprimer définitivement votre compte ?">
+              <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+              <input name="password" type="password" autocomplete="current-password" required placeholder="Mot de passe" aria-label="Mot de passe" maxlength="128">
+              <button class="btn btn-danger" type="submit">Supprimer</button>
+            </form>
+          </section>
+        <% } %>
+      <% } %>
+    </div>
+  </div>
+</div>
+<%- include('partials/foot') %>

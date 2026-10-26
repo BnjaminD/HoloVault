@@ -1,0 +1,45 @@
+<%- include('partials/head') %>
+<div class="container auth-wrap">
+  <div class="panel">
+    <div class="success-burst" aria-hidden="true">✓</div>
+    <h1>Merci <%= order.first_name %> !</h1>
+    <% if (order.status === 'paid') { %>
+      <p>Votre paiement de <strong><%= formatPrice(order.total_cents) %></strong> est confirmé. Nous préparons votre colis avec soin.</p>
+    <% } else { %>
+      <p>Votre paiement de <strong><%= formatPrice(order.total_cents) %></strong> est en cours de vérification par PayPal. Vous serez informé dès sa validation.</p>
+    <% } %>
+
+    <div class="alert alert-info">
+      <strong>Conservez ces identifiants</strong> : ils permettent de suivre votre commande sans compte, depuis la page
+      <a href="/connexion?mode=commande">Connexion → Suivi de commande</a>.
+    </div>
+
+    <div class="stack">
+      <div>
+        <span class="label">Référence de commande (identifiant)</span>
+        <div class="code-box"><span><%= order.reference %></span><button class="btn btn-sm" type="button" data-copy="<%= order.reference %>">Copier</button></div>
+      </div>
+      <div>
+        <span class="label">Numéro de commande (mot de passe)</span>
+        <div class="code-box"><span><%= accessCode %></span><button class="btn btn-sm" type="button" data-copy="<%= accessCode %>">Copier</button></div>
+        <p class="small muted">Ce numéro ne peut pas être récupéré : notez-le ou imprimez cette page. Il vous a aussi été envoyé par e-mail à <strong><%= order.email %></strong>.</p>
+      </div>
+    </div>
+
+    <hr class="sep">
+    <% for (const i of order.items) { %>
+      <div class="summary-row small"><span><%= i.quantity %> × <%= i.name %></span><span><%= formatPrice(i.unit_price_cents * i.quantity) %></span></div>
+    <% } %>
+    <div class="summary-row summary-total"><span>Total payé</span><span><%= formatPrice(order.total_cents) %></span></div>
+
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="<%= user ? '/compte' : '/suivi' %>">Suivre ma commande</a>
+      <button class="btn" type="button" data-print>Imprimer</button>
+      <a class="btn btn-ghost" href="/boutique">Continuer mes achats</a>
+    </div>
+    <% if (!user) { %>
+      <p class="small muted">Envie de retrouver toutes vos commandes au même endroit ? <a href="/inscription">Créez un compte</a> en 1 minute.</p>
+    <% } %>
+  </div>
+</div>
+<%- include('partials/foot') %>

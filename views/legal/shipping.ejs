@@ -1,0 +1,18 @@
+<%- include('../partials/head') %>
+<article class="container prose">
+  <h1>Livraison &amp; retours</h1>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Mode</th><th>Détail</th><th class="num">Tarif</th></tr></thead>
+      <tbody>
+        <% for (const m of Object.values(SHIPPING_METHODS)) { %><tr><td><strong><%= m.label %></strong></td><td><%= m.detail %></td><td class="num"><%= formatPrice(m.cents) %></td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+  <p>Livraison standard offerte dès <%= formatPrice(FREE_SHIPPING_THRESHOLD_CENTS) %> d’achat (hors express).</p>
+  <h2>Emballage</h2>
+  <p>Chaque carte est glissée dans une sleeve puis un toploader, calée entre deux cartons rigides. Les cartes de plus de 100 € sont expédiées en Colissimo avec signature.</p>
+  <h2>Retours</h2>
+  <p>Vous disposez de 14 jours après réception pour nous retourner un article dans l’état où vous l’avez reçu. Contactez-nous avec votre référence de commande.</p>
+</article>
+<%- include('../partials/foot') %>

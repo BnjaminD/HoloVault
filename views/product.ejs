@@ -1,0 +1,86 @@
+<%- include('partials/head') %>
+<div class="container">
+  <nav class="breadcrumbs" aria-label="Fil d’Ariane">
+    <a href="/">Accueil</a><span aria-hidden="true">›</span>
+    <a href="/boutique?game=<%= product.game %>"><%= GAMES[product.game].label %></a><span aria-hidden="true">›</span>
+    <span aria-current="page"><%= product.name %></span>
+  </nav>
+
+  <div class="product-layout">
+    <div class="product-visual" data-tilt>
+      <%- include('partials/card-art', { p: product }) %>
+    </div>
+
+    <div>
+      <div class="tag-row">
+        <% if (product.is_featured) { %><span class="tag tag-rare">★ Pièce rare</span><% } %>
+        <span class="tag"><%= CATEGORIES[product.category] %></span>
+        <% if (product.rarity) { %><span class="tag"><%= product.rarity %></span><% } %>
+        <% if (product.grading) { %><span class="tag"><%= product.grading %></span><% } %>
+      </div>
+      <h1><%= product.name %></h1>
+      <p class="muted"><%= GAMES[product.game].label %><% if (product.set_name) { %> · <%= product.set_name %><% } %><% if (product.card_number) { %> · n° <%= product.card_number %><% } %></p>
+
+      <div class="price price-lg"><%= formatPrice(product.price_cents) %></div>
+      <p class="small">
+        <% if (product.stock === 0) { %><span class="tag tag-stock-out">Épuisé</span>
+        <% } else if (product.stock <= 2) { %><span class="tag tag-stock-low">Plus que <%= product.stock %> en stock</span>
+        <% } else { %><span class="tag tag-ok">En stock — expédié sous 24 h</span><% } %>
+      </p>
+
+      <% if (product.stock > 0) { %>
+        <form class="buy-box" action="/panier" method="post">
+          <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+          <input type="hidden" name="productId" value="<%= product.id %>">
+          <input type="hidden" name="mode" value="add">
+          <label class="sr-only" for="qty">Quantité</label>
+          <input class="qty-input" id="qty" type="number" name="quantity" value="1" min="1" max="<%= Math.min(product.stock, MAX_QTY_PER_LINE) %>">
+          <button class="btn btn-primary" type="submit">Ajouter au panier</button>
+        </form>
+      <% } else { %>
+        <form class="buy-box" action="/produit/<%= product.slug %>/alerte" method="post">
+          <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+          <label class="sr-only" for="alert-email">Votre e-mail</label>
+          <input id="alert-email" type="email" name="email" required placeholder="Votre e-mail" value="<%= user ? user.email : '' %>" maxlength="254">
+          <button class="btn" type="submit">🔔 Me prévenir du retour</button>
+        </form>
+      <% } %>
+
+      <% if (user) { %>
+        <form action="/favoris/<%= product.id %>" method="post" data-wishlist>
+          <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+          <button class="btn btn-ghost btn-sm" type="submit" aria-pressed="<%= inWishlist %>"><%= inWishlist ? '♥ Dans vos favoris' : '♡ Ajouter aux favoris' %></button>
+        </form>
+      <% } %>
+
+      <table class="spec-table">
+        <tbody>
+          <tr><th scope="row">Jeu</th><td><%= GAMES[product.game].label %></td></tr>
+          <% if (product.set_name) { %><tr><th scope="row">Extension</th><td><%= product.set_name %></td></tr><% } %>
+          <% if (product.card_number) { %><tr><th scope="row">Numéro</th><td><%= product.card_number %></td></tr><% } %>
+          <% if (product.rarity) { %><tr><th scope="row">Rareté</th><td><%= product.rarity %></td></tr><% } %>
+          <% if (product.category !== 'sealed' && product.category !== 'accessory') { %>
+            <tr><th scope="row">État</th><td><%= CONDITIONS[product.condition].label %> — <span class="muted"><%= CONDITIONS[product.condition].hint %></span> <a class="small" href="/guide-etat">(guide)</a></td></tr>
+          <% } %>
+          <% if (product.grading) { %><tr><th scope="row">Gradation</th><td><%= product.grading %></td></tr><% } %>
+          <tr><th scope="row">Langue</th><td><%= LANGUAGES[product.language] || product.language %></td></tr>
+        </tbody>
+      </table>
+
+      <% if (product.description) { %>
+        <h2 class="small">Description</h2>
+        <p class="description"><%= product.description %></p>
+      <% } %>
+    </div>
+  </div>
+
+  <% if (related.length) { %>
+    <section class="section">
+      <div class="section-head"><h2>Vous aimerez aussi</h2></div>
+      <div class="product-grid">
+        <% for (const p of related) { %><%- include('partials/product-card', { p }) %><% } %>
+      </div>
+    </section>
+  <% } %>
+</div>
+<%- include('partials/foot') %>

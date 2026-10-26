@@ -1,0 +1,33 @@
+<%- include('partials/head') %>
+<div class="container auth-wrap">
+  <div class="panel">
+    <h1>Créer un compte</h1>
+    <p class="muted">Suivez vos commandes, gardez vos favoris et commandez plus vite.</p>
+    <%- include('partials/errors') %>
+    <form action="/inscription" method="post">
+      <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+      <div class="form-grid">
+        <div class="field full">
+          <label for="email">E-mail</label>
+          <input id="email" name="email" type="email" autocomplete="email" required maxlength="254" value="<%= values.email || '' %>">
+        </div>
+        <div class="field">
+          <label for="password">Mot de passe</label>
+          <input id="password" name="password" type="password" autocomplete="new-password" required minlength="10" maxlength="128">
+          <span class="hint">10 caractères minimum.</span>
+        </div>
+        <div class="field">
+          <label for="passwordConfirm">Confirmation</label>
+          <input id="passwordConfirm" name="passwordConfirm" type="password" autocomplete="new-password" required minlength="10" maxlength="128">
+        </div>
+        <%- include('partials/address-fields', { v: values }) %>
+        <div class="field full">
+          <label class="checkbox"><input type="checkbox" name="acceptTerms" required> <span>J’accepte les <a href="/cgv" target="_blank" rel="noopener">CGV</a> et la <a href="/confidentialite" target="_blank" rel="noopener">politique de confidentialité</a>.</span></label>
+        </div>
+        <div class="field full"><button class="btn btn-primary btn-block" type="submit">Créer mon compte</button></div>
+      </div>
+    </form>
+    <p class="small muted">Déjà inscrit ? <a href="/connexion">Connectez-vous</a>.</p>
+  </div>
+</div>
+<%- include('partials/foot') %>

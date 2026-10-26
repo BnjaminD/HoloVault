@@ -1,0 +1,19 @@
+<article class="product-card">
+  <div class="card-badges">
+    <% if (p.is_featured) { %><span class="tag tag-rare">★ Rare</span><% } %>
+    <% if (p.grading) { %><span class="tag"><%= p.grading %></span><% } %>
+  </div>
+  <%- include('card-art', { p }) %>
+  <h3><a href="/produit/<%= p.slug %>"><%= p.name %></a></h3>
+  <div class="product-meta"><%= GAMES[p.game].label %><% if (p.set_name) { %> · <%= p.set_name %><% } %></div>
+  <div class="product-foot">
+    <span class="price"><%= formatPrice(p.price_cents) %></span>
+    <% if (p.stock === 0) { %>
+      <span class="tag tag-stock-out">Épuisé</span>
+    <% } else if (p.stock <= 2) { %>
+      <span class="tag tag-stock-low">Plus que <%= p.stock %></span>
+    <% } else if (p.category !== 'sealed') { %>
+      <span class="tag" title="<%= CONDITIONS[p.condition]?.label %>"><%= CONDITIONS[p.condition]?.short %> · <%= p.language %></span>
+    <% } %>
+  </div>
+</article>
