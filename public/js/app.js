@@ -109,6 +109,112 @@
     });
   });
 
+  // Search suggestions under the header search box (ARIA combobox). Submitting still runs a full search.
+  const searchInput = document.getElementById('q-header');
+  if (searchInput) {
+    const list = document.createElement('ul');
+    list.id = 'search-suggest';
+    list.className = 'search-suggest';
+    list.setAttribute('role', 'listbox');
+    list.setAttribute('aria-label', 'Suggestions');
+    list.hidden = true;
+    searchInput.after(list);
+    searchInput.setAttribute('role', 'combobox');
+    searchInput.setAttribute('aria-autocomplete', 'list');
+    searchInput.setAttribute('aria-controls', list.id);
+    searchInput.setAttribute('aria-expanded', 'false');
+    searchInput.autocomplete = 'off';
+
+    let items = [];
+    let active = -1;
+    let timer;
+    let controller;
+
+    const el = (tag, className, text) => {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text != null) node.textContent = text;
+      return node;
+    };
+    const close = () => {
+      list.hidden = true;
+      searchInput.setAttribute('aria-expanded', 'false');
+      searchInput.removeAttribute('aria-activedescendant');
+      active = -1;
+    };
+    const highlight = (i) => {
+      active = i;
+      [...list.children].forEach((li, j) => li.setAttribute('aria-selected', String(j === i)));
+      if (i >= 0) searchInput.setAttribute('aria-activedescendant', list.children[i].id);
+      else searchInput.removeAttribute('aria-activedescendant');
+    };
+    const render = (query) => {
+      list.replaceChildren();
+      items.forEach((item, i) => {
+        const li = el('li');
+        li.id = `suggest-${i}`;
+        li.setAttribute('role', 'option');
+        const thumb = el('span', `thumb game-${item.game}`); // game colours when there is no photo
+        if (item.image) {
+          const img = el('img');
+          img.src = item.image;
+          img.alt = '';
+          thumb.append(img);
+        }
+        const text = el('span', 's-text');
+        text.append(el('span', 's-name', item.name), el('span', 's-detail', item.inStock ? item.detail : `${item.detail} · épuisé`));
+        li.append(thumb, text, el('span', 's-price', item.price));
+        li.addEventListener('mousedown', (e) => e.preventDefault()); // keep focus in the input
+        li.addEventListener('click', () => (location.href = item.url));
+        list.append(li);
+      });
+      const all = el('li', 's-all', `Voir tous les résultats pour « ${query} »`);
+      all.id = `suggest-${items.length}`;
+      all.setAttribute('role', 'option');
+      all.addEventListener('mousedown', (e) => e.preventDefault());
+      all.addEventListener('click', () => searchInput.form.submit());
+      list.append(all);
+      list.hidden = false;
+      searchInput.setAttribute('aria-expanded', 'true');
+      highlight(-1);
+    };
+
+    searchInput.addEventListener('input', () => {
+      clearTimeout(timer);
+      const query = searchInput.value.trim();
+      if (query.length < 2) return close();
+      timer = setTimeout(async () => {
+        controller?.abort();
+        controller = new AbortController();
+        try {
+          const res = await fetch(`/api/recherche?q=${encodeURIComponent(query)}`, { signal: controller.signal, headers: { Accept: 'application/json' } });
+          if (!res.ok) return close();
+          items = (await res.json()).items;
+          if (searchInput.value.trim() === query) render(query);
+        } catch {
+          /* aborted by a newer keystroke, or offline */
+        }
+      }, 150);
+    });
+    searchInput.addEventListener('keydown', (e) => {
+      if (list.hidden) return;
+      const count = list.children.length;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        highlight((active + 1) % count);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        highlight((active - 1 + count) % count);
+      } else if (e.key === 'Escape') {
+        close();
+      } else if (e.key === 'Enter' && active >= 0) {
+        e.preventDefault();
+        list.children[active].click();
+      }
+    });
+    searchInput.addEventListener('blur', () => setTimeout(close, 100));
+  }
+
   // Flash messages fade away on their own.
   document.querySelectorAll('.flash-stack .alert').forEach((el, i) => {
     setTimeout(() => el.remove(), 5000 + i * 800);

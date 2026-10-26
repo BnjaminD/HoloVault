@@ -68,7 +68,10 @@ export const shopQuerySchema = z.object({
   minPrice: z.coerce.number().min(0).max(1_000_000).optional().catch(undefined),
   maxPrice: z.coerce.number().min(0).max(1_000_000).optional().catch(undefined),
   inStock: z.literal('1').optional().catch(undefined),
-  sort: z.enum(['new', 'price_asc', 'price_desc', 'name']).catch('new'),
+  set: z.string().trim().max(120).optional().catch(undefined).transform((v) => v || undefined),
+  lang: z.enum(keys(LANGUAGES)).optional().catch(undefined),
+  grader: z.string().trim().toUpperCase().regex(/^[A-Z]{2,12}$/).optional().catch(undefined),
+  sort: z.enum(['relevance', 'new', 'price_asc', 'price_desc', 'name']).optional().catch(undefined),
   page: z.coerce.number().int().min(1).max(1000).catch(1),
 });
 

@@ -37,6 +37,35 @@
             <% for (const [k, c] of Object.entries(CONDITIONS)) { %><option value="<%= k %>" <%= filters.condition === k ? 'selected' : '' %>><%= c.label %> (<%= c.short %>)</option><% } %>
           </select>
         </div>
+        <%
+          // A selected value with no result left must stay selectable (and visible) in its list.
+          const withSelected = (list, selected) => (selected && !list.some((o) => o.value === selected) ? [{ value: selected, n: 0 }, ...list] : list);
+        %>
+        <% if (facets.sets.length || filters.set) { %>
+          <div class="field">
+            <label for="f-set">Extension</label>
+            <select id="f-set" name="set">
+              <option value="">Toutes les extensions</option>
+              <% for (const o of withSelected(facets.sets, filters.set)) { %><option value="<%= o.value %>" <%= filters.set === o.value ? 'selected' : '' %>><%= o.value %> (<%= o.n %>)</option><% } %>
+            </select>
+          </div>
+        <% } %>
+        <div class="field">
+          <label for="f-lang">Langue</label>
+          <select id="f-lang" name="lang">
+            <option value="">Toutes les langues</option>
+            <% for (const o of withSelected(facets.langs, filters.lang)) { %><option value="<%= o.value %>" <%= filters.lang === o.value ? 'selected' : '' %>><%= LANGUAGES[o.value] || o.value %> (<%= o.n %>)</option><% } %>
+          </select>
+        </div>
+        <% if (facets.graders.length || filters.grader) { %>
+          <div class="field">
+            <label for="f-grader">Gradation</label>
+            <select id="f-grader" name="grader">
+              <option value="">Toutes (gradées ou non)</option>
+              <% for (const o of withSelected(facets.graders, filters.grader)) { %><option value="<%= o.value %>" <%= filters.grader === o.value ? 'selected' : '' %>><%= o.value %> (<%= o.n %>)</option><% } %>
+            </select>
+          </div>
+        <% } %>
         <div class="field">
           <span class="label">Prix (€)</span>
           <div class="filters-row">
@@ -47,7 +76,7 @@
         <div class="field">
           <label class="checkbox"><input type="checkbox" name="inStock" value="1" <%= filters.inStock ? 'checked' : '' %>> En stock uniquement</label>
         </div>
-        <input type="hidden" name="sort" value="<%= filters.sort %>">
+        <% if (filters.sort) { %><input type="hidden" name="sort" value="<%= filters.sort %>"><% } %>
         <div class="field"><button class="btn btn-primary btn-block" type="submit">Appliquer</button></div>
         <div class="field"><a class="btn btn-ghost btn-block btn-sm" href="/boutique">Réinitialiser</a></div>
       </form>
@@ -60,14 +89,40 @@
           <% for (const [k, v] of new URLSearchParams(baseQuery)) { if (k !== 'sort') { %><input type="hidden" name="<%= k %>" value="<%= v %>"><% } } %>
           <label class="sr-only" for="sort">Trier par</label>
           <select id="sort" name="sort" data-autosubmit>
-            <option value="new" <%= filters.sort === 'new' ? 'selected' : '' %>>Nouveautés</option>
-            <option value="price_asc" <%= filters.sort === 'price_asc' ? 'selected' : '' %>>Prix croissant</option>
-            <option value="price_desc" <%= filters.sort === 'price_desc' ? 'selected' : '' %>>Prix décroissant</option>
-            <option value="name" <%= filters.sort === 'name' ? 'selected' : '' %>>Nom (A→Z)</option>
+            <% if (filters.q) { %><option value="relevance" <%= sort === 'relevance' ? 'selected' : '' %>>Pertinence</option><% } %>
+            <option value="new" <%= sort === 'new' ? 'selected' : '' %>>Nouveautés</option>
+            <option value="price_asc" <%= sort === 'price_asc' ? 'selected' : '' %>>Prix croissant</option>
+            <option value="price_desc" <%= sort === 'price_desc' ? 'selected' : '' %>>Prix décroissant</option>
+            <option value="name" <%= sort === 'name' ? 'selected' : '' %>>Nom (A→Z)</option>
           </select>
           <noscript><button class="btn btn-sm" type="submit">Trier</button></noscript>
         </form>
       </div>
+
+      <%
+        const chipLabels = {
+          q: (v) => `« ${v} »`,
+          category: (v) => CATEGORIES[v],
+          condition: (v) => `${CONDITIONS[v].label} ou mieux`,
+          set: (v) => v,
+          lang: (v) => LANGUAGES[v] || v,
+          grader: (v) => `Gradée ${v}`,
+          minPrice: (v) => `≥ ${v} €`,
+          maxPrice: (v) => `≤ ${v} €`,
+          inStock: () => 'En stock',
+        };
+        const params = new URLSearchParams(baseQuery);
+        const chips = [...params].filter(([k]) => chipLabels[k]).map(([k, v]) => {
+          const rest = new URLSearchParams(params);
+          rest.delete(k);
+          return { label: chipLabels[k](v), href: basePath + (rest.size ? `?${rest}` : '') };
+        });
+      %>
+      <% if (chips.length) { %>
+        <ul class="filter-chips" aria-label="Filtres actifs">
+          <% for (const c of chips) { %><li><a class="tag" href="<%= c.href %>" aria-label="Retirer le filtre <%= c.label %>"><%= c.label %> <span aria-hidden="true">✕</span></a></li><% } %>
+        </ul>
+      <% } %>
 
       <% if (products.length) { %>
         <div class="product-grid">

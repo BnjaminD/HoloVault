@@ -1,13 +1,15 @@
 import { Router } from 'express';
 import { flash, requireAuth } from '../middleware.js';
-import { GAMES } from '../lib/catalog.js';
-import { galleryFor } from '../lib/images.js';
+import { GAMES, formatPrice } from '../lib/catalog.js';
+import { galleryFor, thumbUrl } from '../lib/images.js';
+import { SORTS, effectiveSort, facets, listingQuery, suggestions } from '../lib/search.js';
 import { breadcrumbJsonLd, gamePath, organizationJsonLd, productDescription, productJsonLd } from '../lib/seo.js';
 import { shopQuerySchema, stockAlertSchema } from '../lib/validation.js';
 
 const PAGE_SIZE = 12;
 // Filters that only narrow or reorder a listing: such pages are crawlable but must not be indexed.
-const isRefined = (f) => !!(f.q || f.category || f.condition || f.minPrice != null || f.maxPrice != null || f.inStock || f.sort !== 'new');
+const isRefined = (f) =>
+  !!(f.q || f.category || f.condition || f.set || f.lang || f.grader || f.minPrice != null || f.maxPrice != null || f.inStock || (f.sort && f.sort !== 'new'));
 
 export function shopRoutes({ db, config, limiters }) {
   const router = Router();
@@ -39,47 +41,19 @@ export function shopRoutes({ db, config, limiters }) {
   });
 
   function renderListing(req, res, f) {
-    const where = ['active = 1'];
-    const params = [];
-    if (f.q) {
-      where.push("(name LIKE ? ESCAPE '\\' OR set_name LIKE ? ESCAPE '\\' OR card_number LIKE ? ESCAPE '\\')");
-      const like = `%${f.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
-      params.push(like, like, like);
-    }
-    for (const key of ['game', 'category', 'condition']) {
-      if (f[key]) {
-        where.push(`${key} = ?`);
-        params.push(f[key]);
-      }
-    }
-    if (f.minPrice != null) {
-      where.push('price_cents >= ?');
-      params.push(Math.round(f.minPrice * 100));
-    }
-    if (f.maxPrice != null) {
-      where.push('price_cents <= ?');
-      params.push(Math.round(f.maxPrice * 100));
-    }
-    if (f.inStock) where.push('stock > 0');
-    const order = {
-      new: 'created_at DESC, id DESC',
-      price_asc: 'price_cents ASC',
-      price_desc: 'price_cents DESC',
-      name: 'name COLLATE NOCASE ASC',
-    }[f.sort];
-
-    const whereSql = where.join(' AND ');
-    const total = db.prepare(`SELECT COUNT(*) AS n FROM products WHERE ${whereSql}`).get(...params).n;
+    const sort = effectiveSort(f);
+    const q = listingQuery(f);
+    const total = db.prepare(`SELECT COUNT(*) AS n FROM ${q.from} WHERE ${q.where}`).get(...q.params).n;
     const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
     const page = Math.min(f.page, pages);
     const products = db
-      .prepare(`SELECT * FROM products WHERE ${whereSql} ORDER BY ${order} LIMIT ? OFFSET ?`)
-      .all(...params, PAGE_SIZE, (page - 1) * PAGE_SIZE);
+      .prepare(`SELECT p.* FROM ${q.from} WHERE ${q.where} ORDER BY ${SORTS[sort]} LIMIT ? OFFSET ?`)
+      .all(...q.params, PAGE_SIZE, (page - 1) * PAGE_SIZE);
 
     const basePath = f.game ? gamePath(f.game) : '/boutique';
     const query = new URLSearchParams();
     for (const [k, v] of Object.entries(f)) {
-      if (v == null || v === '' || k === 'page' || (k === 'game' && f.game) || (k === 'sort' && v === 'new')) continue;
+      if (v == null || v === '' || k === 'page' || (k === 'game' && f.game)) continue;
       query.set(k, String(v));
     }
     const refined = isRefined(f);
@@ -92,9 +66,24 @@ export function shopRoutes({ db, config, limiters }) {
       canonical: refined ? basePath : basePath + (page > 1 ? `?page=${page}` : ''),
       robots: refined ? 'noindex,follow' : null,
       structuredData: game ? [breadcrumbJsonLd(config.baseUrl, [['Accueil', '/'], ['Boutique', '/boutique'], [game.label]])] : [],
-      products, filters: f, total, page, pages, basePath, baseQuery: query.toString(),
+      products, filters: f, sort, facets: facets(db, f), total, page, pages, basePath, baseQuery: query.toString(),
     });
   }
+
+  // Header autocomplete (JSON). Public data only; the global rate limiter applies.
+  router.get('/api/recherche', (req, res) => {
+    const text = typeof req.query.q === 'string' ? req.query.q.slice(0, 80) : '';
+    const items = suggestions(db, text).map((p) => ({
+      name: p.name,
+      url: `/produit/${p.slug}`,
+      game: p.game,
+      detail: [GAMES[p.game]?.label, p.set_name].filter(Boolean).join(' · '),
+      price: formatPrice(p.price_cents),
+      inStock: p.stock > 0,
+      image: p.image_path ? thumbUrl(p.image_path) : null,
+    }));
+    res.set('Cache-Control', 'public, max-age=60').json({ items });
+  });
 
   router.get('/produit/:slug', (req, res, next) => {
     const product = db.prepare('SELECT * FROM products WHERE slug = ? AND active = 1').get(String(req.params.slug));

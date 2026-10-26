@@ -434,3 +434,19 @@ hr.sep { border: 0; border-top: 1px solid var(--border); margin: 14px 0; }
 .gallery-admin-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; list-style: none; margin: 0 0 14px; padding: 0; }
 .gallery-admin-list li { display: grid; gap: 6px; align-content: start; }
 .thumb-lg { width: 100%; font-size: 1.4rem; }
+
+/* Active filters & search suggestions */
+.filter-chips { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0 0 16px; padding: 0; }
+.filter-chips a { text-decoration: none; }
+.filter-chips a:hover { border-color: var(--primary); }
+.header-search { position: relative; }
+.search-suggest { position: absolute; top: calc(100% + 6px); left: 0; right: 0; min-width: 320px; z-index: 50; list-style: none; margin: 0; padding: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow); }
+.search-suggest[hidden] { display: none; }
+.search-suggest li { display: grid; grid-template-columns: 32px 1fr auto; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+.search-suggest li[aria-selected="true"], .search-suggest li:hover { background: var(--surface-2); }
+.search-suggest .thumb { width: 32px; }
+.search-suggest .s-text { display: grid; gap: 2px; min-width: 0; }
+.search-suggest .s-name { font-weight: 600; font-size: .9rem; line-height: 1.2; }
+.search-suggest .s-detail { font-size: .75rem; color: var(--text-muted); }
+.search-suggest .s-price { font-weight: 700; font-size: .85rem; white-space: nowrap; }
+.search-suggest .s-all { grid-template-columns: 1fr; color: var(--primary-strong); font-weight: 600; font-size: .85rem; }
