@@ -156,11 +156,11 @@ export function adminRoutes({ db, config, mailer }) {
     if (image || removeCurrent) removeImage(existing.image_path);
     db.prepare(
       `UPDATE products SET slug = ?, name = ?, game = ?, category = ?, set_name = ?, card_number = ?, rarity = ?, condition = ?, language = ?,
-         grading = ?, description = ?, price_cents = ?, stock = ?, is_featured = ?, image_path = ?, active = ? WHERE id = ?`,
+         grading = ?, description = ?, price_cents = ?, stock = ?, is_featured = ?, image_path = ?, active = ?, updated_at = ? WHERE id = ?`,
     ).run(
       d.name === existing.name ? existing.slug : uniqueSlug(d.name, existing.id), d.name, d.game, d.category, d.setName, d.cardNumber,
       d.rarity, d.condition, d.language, d.grading, d.description, Math.round(d.price * 100), d.stock, d.isFeatured ? 1 : 0,
-      imagePath, d.active ? 1 : 0, existing.id,
+      imagePath, d.active ? 1 : 0, Date.now(), existing.id,
     );
 
     if (existing.stock === 0 && d.stock > 0 && d.active) {
@@ -175,7 +175,7 @@ export function adminRoutes({ db, config, mailer }) {
   });
 
   router.post('/produits/:id/archiver', (req, res) => {
-    db.prepare('UPDATE products SET active = 0, is_featured = 0 WHERE id = ?').run(Number(req.params.id));
+    db.prepare('UPDATE products SET active = 0, is_featured = 0, updated_at = ? WHERE id = ?').run(Date.now(), Number(req.params.id));
     flash(req, 'success', 'Produit archivé (retiré de la boutique).');
     res.redirect('/admin/produits');
   });

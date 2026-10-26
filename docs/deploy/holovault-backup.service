@@ -1,0 +1,12 @@
+# /etc/systemd/system/holovault-backup.service
+[Unit]
+Description=Sauvegarde de la base HoloVault
+
+[Service]
+Type=oneshot
+User=holovault
+WorkingDirectory=/srv/holovault
+ExecStart=/usr/bin/node scripts/backup.js
+# Copie hors serveur (optionnel, rclone configuré pour l'utilisateur holovault) :
+# ExecStartPost=/usr/bin/rclone sync /srv/holovault/data/backups b2:holovault-backups/db
+# ExecStartPost=/usr/bin/rclone sync /srv/holovault/data/uploads b2:holovault-backups/uploads

@@ -11,7 +11,9 @@
     "audit": "npm audit --omit=dev --audit-level=low",
     "security": "npm run audit && npm run lint && npm test && npm run pentest",
     "lint": "eslint . --max-warnings=0",
-    "test:coverage": "node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-exclude=\"tests/**\" \"tests/**/*.test.js\""
+    "test:coverage": "node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-exclude=\"tests/**\" \"tests/**/*.test.js\"",
+    "migrate": "node scripts/migrate.js",
+    "backup": "node scripts/backup.js"
   },
   "author": "",
   "license": "UNLICENSED",

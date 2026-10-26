@@ -1,0 +1,11 @@
+# /etc/systemd/system/holovault-backup.timer  —  activer : systemctl enable --now holovault-backup.timer
+[Unit]
+Description=Sauvegarde quotidienne de la base HoloVault
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

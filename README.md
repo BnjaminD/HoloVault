@@ -29,4 +29,10 @@ instance éphémère et détection de secrets (gitleaks) à chaque push et pull 
 
 ## Exploitation
 
-- `GET /healthz` : état de l'application et de la base (monitoring, smoke test de déploiement).
+| Commande | Rôle |
+|---|---|
+| `npm run migrate` | Applique les migrations de schéma (`src/db/migrations/`) |
+| `npm run backup` | Sauvegarde à chaud vérifiée de la base, avec rotation |
+| `GET /healthz` | État de l'application et de la base |
+
+Installation du serveur, déploiement continu, sauvegardes et restauration : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md).

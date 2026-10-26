@@ -1,0 +1,30 @@
+# /etc/systemd/system/holovault.service
+[Unit]
+Description=HoloVault (boutique TCG)
+After=network.target
+
+[Service]
+Type=simple
+User=holovault
+Group=holovault
+WorkingDirectory=/srv/holovault
+ExecStart=/usr/bin/node src/server.js
+Restart=on-failure
+RestartSec=3
+Environment=NODE_ENV=production
+
+# Durcissement : l'application n'écrit que dans data/ (base, uploads, sauvegardes).
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/holovault/data
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

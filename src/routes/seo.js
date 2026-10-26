@@ -5,7 +5,7 @@ import { PAGES } from './pages.js';
 
 export function seoRoutes({ db, config }) {
   const router = Router();
-  const products = db.prepare('SELECT slug, created_at FROM products WHERE active = 1 ORDER BY id');
+  const products = db.prepare('SELECT slug, COALESCE(updated_at, created_at) AS lastmod FROM products WHERE active = 1 ORDER BY id');
 
   router.get('/robots.txt', (req, res) => {
     res.type('text/plain').send(
@@ -20,7 +20,7 @@ export function seoRoutes({ db, config }) {
       { loc: url('/') },
       { loc: url('/boutique') },
       ...Object.keys(GAMES).map((game) => ({ loc: url(gamePath(game)) })),
-      ...products.all().map((p) => ({ loc: url(`/produit/${p.slug}`), lastmod: p.created_at })),
+      ...products.all().map((p) => ({ loc: url(`/produit/${p.slug}`), lastmod: p.lastmod })),
       ...Object.keys(PAGES).map((page) => ({ loc: url(`/${page}`) })),
     ];
     res.set('Cache-Control', 'public, max-age=3600').type('application/xml').send(sitemapXml(entries));
