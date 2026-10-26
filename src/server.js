@@ -25,7 +25,7 @@ const housekeeping = setInterval(() => {
 }, 5 * 60 * 1000);
 housekeeping.unref();
 
-const server = app.listen(config.port, '127.0.0.1', () => {
+const server = app.listen(config.port, config.host, () => {
   console.info(`${config.shopName} démarré sur ${config.baseUrl} (env=${config.env}, paypal=${paypal.mode})`);
 });
 

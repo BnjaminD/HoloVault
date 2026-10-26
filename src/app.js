@@ -75,6 +75,17 @@ export function createApp({ db, config, paypal, mailer, disableRateLimit = false
 
   app.use('/static', express.static(`${ROOT}public`, { maxAge: config.isProd ? '7d' : 0, index: false }));
   app.use('/uploads', express.static(config.uploadDir, { maxAge: '30d', index: false, dotfiles: 'deny' }));
+  // Liveness + DB check for the deploy smoke test and uptime monitoring; kept ahead of the rate limiter.
+  const ping = db.prepare('SELECT 1 AS ok');
+  app.get('/healthz', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+      ping.get();
+      res.json({ status: 'ok' });
+    } catch {
+      res.status(503).json({ status: 'error' });
+    }
+  });
   app.get('/robots.txt', (req, res) => res.type('text/plain').send('User-agent: *\nDisallow: /admin\nDisallow: /compte\nDisallow: /api\n'));
 
   app.use(limiters.global);
@@ -113,7 +124,6 @@ export function createApp({ db, config, paypal, mailer, disableRateLimit = false
     res.status(404).render('error', { title: 'Page introuvable', status: 404, message: 'Cette page n’existe pas ou plus.' });
   });
 
-  // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, next) => {
     const status = err.status && err.status >= 400 && err.status < 500 ? err.status : 500;
     if (status === 500) console.error('[erreur]', req.method, req.originalUrl, err);

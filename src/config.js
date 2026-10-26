@@ -18,6 +18,7 @@ export function loadConfig(overrides = {}) {
   const cfg = {
     env: env.NODE_ENV || 'development',
     port,
+    host: env.HOST || '127.0.0.1',
     baseUrl: (env.BASE_URL || `http://localhost:${port}`).replace(/\/$/, ''),
     shopName: env.SHOP_NAME || 'HoloVault',
     sessionSecret: env.SESSION_SECRET || '',
