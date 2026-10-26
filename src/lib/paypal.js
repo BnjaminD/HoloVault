@@ -13,7 +13,7 @@ export class PayPalError extends Error {
   }
 }
 
-function buildOrderBody(order, items, shopName) {
+function buildOrderBody(order, items, shopName, { method = 'paypal' } = {}) {
   return {
     intent: 'CAPTURE',
     purchase_units: [
@@ -39,23 +39,44 @@ function buildOrderBody(order, items, shopName) {
         })),
       },
     ],
-    payment_source: {
-      paypal: {
-        experience_context: {
-          brand_name: shopName.slice(0, 127),
-          locale: 'fr-FR',
-          shipping_preference: 'NO_SHIPPING',
-          user_action: 'PAY_NOW',
-        },
-      },
-    },
+    payment_source:
+      method === 'card'
+        ? {
+            // Card typed in the checkout page (Card Fields): ask for 3-D Secure whenever the bank requires it (SCA, EU).
+            card: { attributes: { verification: { method: 'SCA_WHEN_REQUIRED' } } },
+          }
+        : {
+            paypal: {
+              experience_context: {
+                brand_name: shopName.slice(0, 127),
+                locale: 'fr-FR',
+                shipping_preference: 'NO_SHIPPING',
+                user_action: 'PAY_NOW',
+              },
+            },
+          },
   };
+}
+
+// Decides whether a card order may be captured, from its 3-D Secure result (PayPal "recommended actions"):
+// capture when the liability shifted to the bank, or when the card is simply not enrolled in 3-D Secure;
+// refuse failed, rejected, unavailable or unknown authentications.
+export function checkCardAuthentication(paypalOrder) {
+  const auth = paypalOrder?.payment_source?.card?.authentication_result;
+  if (!auth) return { ok: false, reason: 'no-authentication-result' };
+  const liability = auth.liability_shift;
+  const enrollment = auth.three_d_secure?.enrollment_status;
+  const status = auth.three_d_secure?.authentication_status;
+  if (liability === 'POSSIBLE' || liability === 'YES') return { ok: true };
+  if (liability === 'NO' && ['N', 'U', 'B'].includes(enrollment) && !status) return { ok: true };
+  return { ok: false, reason: `3ds:${liability ?? '?'}/${enrollment ?? '?'}/${status ?? '?'}` };
 }
 
 // Extracts what we need from a capture response and checks it against the expected order.
 export function verifyCapture(capture, order) {
   const unit = capture?.purchase_units?.[0];
   const cap = unit?.payments?.captures?.[0];
+  if (cap?.status === 'DECLINED') return { ok: false, declined: true, reason: 'declined', captureId: cap.id };
   if (!cap || !['COMPLETED', 'PENDING'].includes(cap.status)) return { ok: false, reason: 'status' };
   if (unit.reference_id && unit.reference_id !== order.reference) return { ok: false, reason: 'reference', captureId: cap.id };
   if (cap.amount?.currency_code !== order.currency || cap.amount?.value !== toPayPalValue(order.total_cents)) {
@@ -108,11 +129,14 @@ export function createPayPalClient({ mode, clientId, clientSecret, webhookId }, 
   return {
     mode,
     clientId,
-    async createOrder(order, items) {
-      const data = await call('POST', '/v2/checkout/orders', buildOrderBody(order, items, shopName), {
+    async createOrder(order, items, { method = 'paypal' } = {}) {
+      const data = await call('POST', '/v2/checkout/orders', buildOrderBody(order, items, shopName, { method }), {
         'PayPal-Request-Id': `create-${order.reference}`,
       });
       return data.id;
+    },
+    getOrder(paypalOrderId) {
+      return call('GET', `/v2/checkout/orders/${encodeURIComponent(paypalOrderId)}`);
     },
     captureOrder(paypalOrderId) {
       return call('POST', `/v2/checkout/orders/${encodeURIComponent(paypalOrderId)}/capture`, undefined, {
@@ -137,16 +161,29 @@ export function createPayPalClient({ mode, clientId, clientSecret, webhookId }, 
 }
 
 // Development-only simulator: never enabled in production (enforced in config.js).
+// A card payment is simulated as successfully authenticated with 3-D Secure.
 function createMockClient(shopName) {
   const orders = new Map();
   return {
     mode: 'mock',
     clientId: '',
-    async createOrder(order, items) {
-      const body = buildOrderBody(order, items, shopName);
+    async createOrder(order, items, { method = 'paypal' } = {}) {
+      const body = buildOrderBody(order, items, shopName, { method });
       const id = `MOCK-${randomUUID()}`;
-      orders.set(id, body.purchase_units[0]);
+      orders.set(id, { ...body.purchase_units[0], method });
       return id;
+    },
+    async getOrder(id) {
+      const unit = orders.get(id);
+      if (!unit) throw new PayPalError('Commande PayPal inconnue', { status: 404 });
+      return {
+        id,
+        status: 'APPROVED',
+        payment_source:
+          unit.method === 'card'
+            ? { card: { last_digits: '4242', authentication_result: { liability_shift: 'POSSIBLE', three_d_secure: { enrollment_status: 'Y', authentication_status: 'Y' } } } }
+            : { paypal: {} },
+      };
     },
     async captureOrder(id) {
       const unit = orders.get(id);

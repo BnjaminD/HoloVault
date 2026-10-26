@@ -48,6 +48,7 @@ export const checkoutSchema = z.object({
   promoCode: z.string().trim().max(30).optional().default(''),
   note: z.string().trim().max(500).optional().default(''),
   acceptTerms: z.union([z.literal('on'), z.literal(true)]),
+  paymentMethod: z.enum(['paypal', 'card']).default('paypal'),
 });
 
 export const quoteSchema = z.object({

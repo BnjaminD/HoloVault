@@ -24,7 +24,7 @@
         <% if (order.discount_cents) { %><div class="summary-row"><span>Réduction <%= order.promo_code %></span><span>−<%= formatPrice(order.discount_cents) %></span></div><% } %>
         <div class="summary-row"><span>Livraison — <%= SHIPPING_METHODS[order.shipping_method]?.label %></span><span><%= formatPrice(order.shipping_cents) %></span></div>
         <div class="summary-row summary-total"><span>Total</span><span><%= formatPrice(order.total_cents) %></span></div>
-        <p class="small muted">PayPal : commande <%= order.paypal_order_id || '—' %> · capture <%= order.paypal_capture_id || '—' %></p>
+        <p class="small muted"><%= order.payment_method === 'card' ? 'Carte bancaire (via PayPal)' : 'Compte PayPal' %> · commande <%= order.paypal_order_id || '—' %> · capture <%= order.paypal_capture_id || '—' %></p>
       </section>
       <section class="panel">
         <h2>Client &amp; livraison</h2>

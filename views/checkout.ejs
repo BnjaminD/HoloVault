@@ -72,15 +72,28 @@
       <% if (paypalMode === 'mock') { %>
         <div class="alert alert-info small">Mode simulation (développement) : aucun paiement réel.</div>
         <button class="btn btn-holo btn-block" type="button" id="mock-pay">Payer <%= formatPrice(quote.total) %> (simulation)</button>
+        <div class="pay-divider"><span>ou par carte bancaire</span></div>
+        <button class="btn btn-primary btn-block" type="button" id="mock-card-pay">Payer par carte (simulation 3-D Secure)</button>
       <% } else { %>
         <div id="paypal-buttons"></div>
+        <%# Shown by checkout.js only if PayPal confirms card payments are enabled on the merchant account. %>
+        <div id="card-payment" hidden>
+          <div class="pay-divider"><span>ou par carte bancaire</span></div>
+          <div class="card-fields">
+            <div id="card-name"></div>
+            <div id="card-number"></div>
+            <div class="card-fields-row"><div id="card-expiry"></div><div id="card-cvv"></div></div>
+          </div>
+          <button class="btn btn-primary btn-block" type="button" id="card-pay">Payer <span data-total><%= formatPrice(quote.total) %></span> par carte</button>
+          <p class="small muted card-brands">CB · Visa · Mastercard — authentification 3-D Secure par votre banque</p>
+        </div>
       <% } %>
-      <p class="secure-note">🔒 Paiement chiffré et traité par PayPal. Nous ne voyons jamais vos données bancaires.</p>
+      <p class="secure-note">🔒 Paiement chiffré et traité par PayPal, par compte PayPal ou par carte. Nous ne voyons jamais vos données bancaires.</p>
     </aside>
   </form>
 </div>
 <% if (paypalMode !== 'mock') { %>
-  <script src="https://www.paypal.com/sdk/js?client-id=<%= encodeURIComponent(paypalClientId) %>&currency=EUR&intent=capture&locale=fr_FR&components=buttons" data-csp-nonce="<%= nonce %>" nonce="<%= nonce %>"></script>
+  <script src="https://www.paypal.com/sdk/js?client-id=<%= encodeURIComponent(paypalClientId) %>&currency=EUR&intent=capture&locale=fr_FR&components=buttons,card-fields" data-csp-nonce="<%= nonce %>" nonce="<%= nonce %>"></script>
 <% } %>
 <script src="/static/js/checkout.js" defer></script>
 <%- include('partials/foot') %>

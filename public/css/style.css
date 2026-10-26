@@ -450,3 +450,10 @@ hr.sep { border: 0; border-top: 1px solid var(--border); margin: 14px 0; }
 .search-suggest .s-detail { font-size: .75rem; color: var(--text-muted); }
 .search-suggest .s-price { font-weight: 700; font-size: .85rem; white-space: nowrap; }
 .search-suggest .s-all { grid-template-columns: 1fr; color: var(--primary-strong); font-weight: 600; font-size: .85rem; }
+
+/* Card payment (PayPal Card Fields) */
+.pay-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0 12px; color: var(--text-muted); font-size: .82rem; }
+.pay-divider::before, .pay-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.card-fields { display: grid; gap: 4px; margin-bottom: 10px; }
+.card-fields-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.card-brands { text-align: center; margin: 8px 0 0; }

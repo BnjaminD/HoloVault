@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { computeQuote, loadCartLines } from '../lib/cart.js';
 import { toPayPalValue } from '../lib/catalog.js';
 import { CheckoutError, addOrderEvent, createPendingOrder, getOrderWithItems, markOrderPaid, releaseOrder } from '../lib/orders.js';
-import { PayPalError, verifyCapture } from '../lib/paypal.js';
+import { PayPalError, checkCardAuthentication, verifyCapture } from '../lib/paypal.js';
 import { checkoutSchema, formatIssues } from '../lib/validation.js';
 
 export function checkoutRoutes({ db, paypal, mailer, limiters }) {
@@ -41,9 +41,9 @@ export function checkoutRoutes({ db, paypal, mailer, limiters }) {
 
     const full = getOrderWithItems(db, order.id);
     try {
-      const paypalOrderId = await paypal.createOrder(full, full.items);
+      const paypalOrderId = await paypal.createOrder(full, full.items, { method: d.paymentMethod });
       db.prepare('UPDATE orders SET paypal_order_id = ?, updated_at = ? WHERE id = ?').run(paypalOrderId, Date.now(), order.id);
-      req.session.pendingOrder = { id: order.id, paypalOrderId, accessCode: order.accessCode };
+      req.session.pendingOrder = { id: order.id, paypalOrderId, accessCode: order.accessCode, method: d.paymentMethod };
       res.json({ id: paypalOrderId });
     } catch (err) {
       releaseOrder(db, order.id, 'Échec de création du paiement PayPal');
@@ -66,11 +66,38 @@ export function checkoutRoutes({ db, paypal, mailer, limiters }) {
       return res.status(409).json({ error: 'Le délai de paiement a expiré. Votre panier est conservé, merci de recommencer.' });
     }
 
+    const isCard = pending.method === 'card';
+    // A card order is new on the next attempt (Card Fields create one per submit): free this one now.
+    const refuseCard = (note, error) => {
+      releaseOrder(db, order.id, note);
+      delete req.session.pendingOrder;
+      return res.status(422).json({ error });
+    };
+
+    if (isCard) {
+      let paypalOrder;
+      try {
+        paypalOrder = await paypal.getOrder(pending.paypalOrderId);
+      } catch (err) {
+        console.error('[paypal] lecture commande carte', err.details ?? err);
+        return res.status(502).json({ error: 'Le paiement n’a pas pu être confirmé. Aucun montant n’a été débité.' });
+      }
+      const auth = checkCardAuthentication(paypalOrder);
+      if (!auth.ok) {
+        console.warn(`[paypal] 3-D Secure non concluant pour ${order.reference} : ${auth.reason}`);
+        return refuseCard(
+          `Carte refusée avant débit : authentification 3-D Secure non concluante (${auth.reason})`,
+          'Votre banque n’a pas validé le paiement (3-D Secure). Aucun montant n’a été débité : réessayez ou utilisez une autre carte.',
+        );
+      }
+    }
+
     let capture;
     try {
       capture = await paypal.captureOrder(pending.paypalOrderId);
     } catch (err) {
       if (err instanceof PayPalError && err.details?.name === 'UNPROCESSABLE_ENTITY') {
+        if (isCard) return refuseCard('Carte refusée par la banque', 'Carte refusée par votre banque. Aucun montant n’a été débité : essayez une autre carte.');
         // Typically INSTRUMENT_DECLINED: the buyer can pick another funding source.
         return res.status(422).json({ error: 'Paiement refusé par PayPal. Essayez un autre moyen de paiement.', restart: true });
       }
@@ -79,6 +106,11 @@ export function checkoutRoutes({ db, paypal, mailer, limiters }) {
     }
 
     const check = verifyCapture(capture, order);
+    if (check.declined) {
+      return isCard
+        ? refuseCard('Carte refusée par la banque', 'Carte refusée par votre banque. Aucun montant n’a été débité : essayez une autre carte.')
+        : res.status(422).json({ error: 'Paiement refusé. Essayez un autre moyen de paiement.', restart: true });
+    }
     if (!check.ok) {
       console.error(`[paypal] capture incohérente pour ${order.reference} : ${check.reason}`);
       if (check.captureId) {

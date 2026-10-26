@@ -41,14 +41,14 @@ export async function createPendingOrder(db, { lines, quote, customer, userId })
       .prepare(
         `INSERT INTO orders (reference, access_code_hash, user_id, email, first_name, last_name, phone,
            address_line1, address_line2, postal_code, city, country, shipping_method,
-           subtotal_cents, discount_cents, shipping_cents, total_cents, promo_code, customer_note, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           subtotal_cents, discount_cents, shipping_cents, total_cents, promo_code, customer_note, payment_method, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         reference, accessCodeHash, userId ?? null, customer.email, customer.firstName, customer.lastName, customer.phone,
         customer.addressLine1, customer.addressLine2 || '', customer.postalCode, customer.city, customer.country,
         quote.shippingMethod, quote.subtotal, quote.discount, quote.shipping, quote.total,
-        quote.promo?.code ?? null, customer.note || '', now, now,
+        quote.promo?.code ?? null, customer.note || '', customer.paymentMethod ?? 'paypal', now, now,
       );
     const item = db.prepare(
       'INSERT INTO order_items (order_id, product_id, name, unit_price_cents, quantity) VALUES (?, ?, ?, ?, ?)',

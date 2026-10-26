@@ -99,3 +99,16 @@ sudo systemctl start holovault
 - E-mails : chaque message passe par la table `email_outbox` et est réessayé jusqu'à 8 fois (≈ 10 h) en cas de panne
   SMTP. Messages abandonnés :
   `sqlite3 data/shop.db "SELECT id, recipient, subject, last_error FROM email_outbox WHERE failed_at IS NOT NULL"`.
+
+## 7. Paiement par carte (PayPal Card Fields)
+
+- Les champs carte (numéro, date, cryptogramme) sont des iframes hébergées par PayPal : aucune donnée bancaire ne
+  transite par le serveur (périmètre PCI DSS SAQ A).
+- **Prérequis :** activer *Advanced Credit and Debit Card Payments* sur le compte PayPal Business (Dashboard
+  développeur → application → Features). Sans cela, le bloc « ou par carte bancaire » reste masqué automatiquement
+  et seul le bouton PayPal s'affiche.
+- 3-D Secure est demandé quand la banque l'exige (`SCA_WHEN_REQUIRED`). Avant la capture, le serveur relit le
+  résultat d'authentification : échec, refus ou résultat inconnu → aucune capture, commande annulée, stock remis.
+- **Valider en sandbox avant la mise en production** avec les cartes de test 3-D Secure de PayPal
+  (succès, échec, carte non enrôlée) : <https://developer.paypal.com/tools/sandbox/card-testing/>.
+- Le moyen de paiement de chaque commande (`orders.payment_method`) est affiché dans le back-office.
