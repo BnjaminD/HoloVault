@@ -2,7 +2,7 @@
 <div class="container">
   <nav class="breadcrumbs" aria-label="Fil d’Ariane">
     <a href="/">Accueil</a><span aria-hidden="true">›</span>
-    <a href="/boutique?game=<%= product.game %>"><%= GAMES[product.game].label %></a><span aria-hidden="true">›</span>
+    <a href="<%= gamePath(product.game) %>"><%= GAMES[product.game].label %></a><span aria-hidden="true">›</span>
     <span aria-current="page"><%= product.name %></span>
   </nav>
 

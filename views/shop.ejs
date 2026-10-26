@@ -3,7 +3,8 @@
   <div class="section-head">
     <div>
       <span class="eyebrow"><%= filters.game ? GAMES[filters.game].symbol + ' ' + GAMES[filters.game].label : 'Catalogue' %></span>
-      <h1><%= filters.q ? `Résultats pour « ${filters.q} »` : (filters.game ? GAMES[filters.game].label : 'Toute la boutique') %></h1>
+      <h1><%= filters.q ? `Résultats pour « ${filters.q} »` : (filters.game ? `Cartes ${GAMES[filters.game].label}` : 'Toute la boutique') %></h1>
+      <% if (intro) { %><p class="muted"><%= intro %></p><% } %>
     </div>
   </div>
 
@@ -55,7 +56,7 @@
     <section aria-label="Produits">
       <div class="shop-toolbar">
         <span class="muted"><%= total %> produit<%= total > 1 ? 's' : '' %></span>
-        <form action="/boutique" method="get">
+        <form action="<%= basePath %>" method="get">
           <% for (const [k, v] of new URLSearchParams(baseQuery)) { if (k !== 'sort') { %><input type="hidden" name="<%= k %>" value="<%= v %>"><% } } %>
           <label class="sr-only" for="sort">Trier par</label>
           <select id="sort" name="sort" data-autosubmit>
@@ -78,10 +79,18 @@
 
       <% if (pages > 1) { %>
         <nav class="pagination" aria-label="Pagination">
-          <% for (let i = 1; i <= pages; i++) { %>
+          <%
+            const pageHref = (i) => basePath + (baseQuery || i > 1 ? '?' : '') + [baseQuery, i > 1 ? `page=${i}` : ''].filter(Boolean).join('&');
+            // First, last and two pages around the current one; gaps become an ellipsis.
+            const shown = [...new Set([1, page - 2, page - 1, page, page + 1, page + 2, pages])].filter((i) => i >= 1 && i <= pages).sort((a, b) => a - b);
+          %>
+          <% if (page > 1) { %><a href="<%= pageHref(page - 1) %>" rel="prev" aria-label="Page précédente">‹</a><% } %>
+          <% shown.forEach((i, idx) => { %>
+            <% if (idx > 0 && i - shown[idx - 1] > 1) { %><span aria-hidden="true">…</span><% } %>
             <% if (i === page) { %><span aria-current="page"><%= i %></span>
-            <% } else { %><a href="/boutique?<%= baseQuery ? baseQuery + '&' : '' %>page=<%= i %>"><%= i %></a><% } %>
-          <% } %>
+            <% } else { %><a href="<%= pageHref(i) %>"><%= i %></a><% } %>
+          <% }) %>
+          <% if (page < pages) { %><a href="<%= pageHref(page + 1) %>" rel="next" aria-label="Page suivante">›</a><% } %>
         </nav>
       <% } %>
     </section>

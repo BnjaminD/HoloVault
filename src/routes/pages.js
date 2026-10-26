@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-const PAGES = {
+export const PAGES = {
   'cgv': { title: 'Conditions générales de vente', view: 'legal/cgv' },
   'mentions-legales': { title: 'Mentions légales', view: 'legal/mentions' },
   'confidentialite': { title: 'Politique de confidentialité', view: 'legal/privacy' },

@@ -3,8 +3,28 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><%= title ? `${title} — ${shopName}` : shopName %></title>
-  <meta name="description" content="<%= locals.description || 'Cartes Pokémon, Yu-Gi-Oh!, Magic, One Piece et Lorcana : cartes rares, gradées et produits scellés. Expédition protégée sous 24 h.' %>">
+<%
+  const pageTitle = title ? `${title} — ${shopName}` : shopName;
+  const pageDescription = locals.description || 'Cartes Pokémon, Yu-Gi-Oh!, Magic, One Piece et Lorcana : cartes rares, gradées et produits scellés. Expédition protégée sous 24 h.';
+  const noindex = locals.status || isPrivatePath(currentPath);
+  const canonicalUrl = noindex ? null : baseUrl + (locals.canonical ?? currentPath);
+%>
+  <title><%= pageTitle %></title>
+  <meta name="description" content="<%= pageDescription %>">
+  <meta name="robots" content="<%= locals.robots || (noindex ? 'noindex,nofollow' : 'index,follow') %>">
+  <% if (canonicalUrl) { %>
+  <link rel="canonical" href="<%= canonicalUrl %>">
+  <meta property="og:site_name" content="<%= shopName %>">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:type" content="<%= locals.ogType || 'website' %>">
+  <meta property="og:title" content="<%= title || shopName %>">
+  <meta property="og:description" content="<%= pageDescription %>">
+  <meta property="og:url" content="<%= canonicalUrl %>">
+  <% if (locals.ogImage) { %><meta property="og:image" content="<%= baseUrl + ogImage %>"><% } %>
+  <meta name="twitter:card" content="<%= locals.ogImage ? 'summary_large_image' : 'summary' %>">
+  <% } %>
+  <% for (const data of locals.structuredData || []) { %><script type="application/ld+json" nonce="<%= nonce %>"><%- jsonLd(data) %></script>
+  <% } %>
   <% if (user) { %><meta name="csrf-token" content="<%= csrfToken() %>"><% } %>
   <meta name="theme-color" content="#0a0c16">
   <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
@@ -18,8 +38,8 @@
     <a class="logo" href="/" aria-label="<%= shopName %> — accueil"><span class="logo-mark" aria-hidden="true"></span><%= shopName %></a>
     <nav class="main-nav" aria-label="Navigation principale">
       <a href="/boutique" <%- currentPath === '/boutique' && !locals.filters?.game ? 'aria-current="page"' : '' %>>Boutique</a>
-      <% for (const key of ['pokemon', 'yugioh', 'magic', 'onepiece']) { %>
-        <a href="/boutique?game=<%= key %>" <%- locals.filters?.game === key ? 'aria-current="page"' : '' %>><%= GAMES[key].label.split(':')[0] %></a>
+      <% for (const key of Object.keys(GAMES)) { %>
+        <a href="<%= gamePath(key) %>" <%- locals.filters?.game === key ? 'aria-current="page"' : '' %>><%= GAMES[key].label.split(':')[0] %></a>
       <% } %>
     </nav>
     <form class="header-search" action="/boutique" method="get" role="search">
@@ -50,7 +70,7 @@
         <nav class="mobile-panel" aria-label="Navigation mobile">
           <form action="/boutique" method="get" role="search"><input type="search" name="q" placeholder="Rechercher une carte…" aria-label="Rechercher" maxlength="80"></form>
           <a href="/boutique">Toute la boutique</a>
-          <% for (const [key, g] of Object.entries(GAMES)) { %><a href="/boutique?game=<%= key %>"><%= g.symbol %> <%= g.label %></a><% } %>
+          <% for (const [key, g] of Object.entries(GAMES)) { %><a href="<%= gamePath(key) %>"><%= g.symbol %> <%= g.label %></a><% } %>
           <a href="<%= user ? '/compte' : '/connexion' %>"><%= user ? 'Mon compte' : 'Connexion / Suivi de commande' %></a>
         </nav>
       </details>

@@ -1,9 +1,24 @@
 export const GAMES = {
-  pokemon: { label: 'Pokémon', symbol: '⚡' },
-  yugioh: { label: 'Yu-Gi-Oh!', symbol: '👁' },
-  magic: { label: 'Magic: The Gathering', symbol: '✦' },
-  onepiece: { label: 'One Piece', symbol: '☠' },
-  lorcana: { label: 'Disney Lorcana', symbol: '✧' },
+  pokemon: {
+    label: 'Pokémon', symbol: '⚡',
+    intro: 'Cartes Pokémon rares, holographiques et gradées PSA ou PCA, du Set de Base aux dernières extensions Écarlate & Violet, ainsi que displays et ETB scellés.',
+  },
+  yugioh: {
+    label: 'Yu-Gi-Oh!', symbol: '👁',
+    intro: 'Cartes Yu-Gi-Oh! de collection et de tournoi : premières éditions, Ultra et Secret Rares, cartes gradées et boosters scellés.',
+  },
+  magic: {
+    label: 'Magic: The Gathering', symbol: '✦',
+    intro: 'Cartes Magic: The Gathering pour le Commander, le Modern et la collection : mythiques, cartes vintage, versions borderless et boosters collector.',
+  },
+  onepiece: {
+    label: 'One Piece', symbol: '☠',
+    intro: 'Cartes One Piece Card Game : Manga Rares, Alternate Arts, Secret Rares et displays scellés, en français, anglais et japonais.',
+  },
+  lorcana: {
+    label: 'Disney Lorcana', symbol: '✧',
+    intro: 'Cartes Disney Lorcana enchantées, légendaires et promos, chapitre par chapitre, pour joueurs et collectionneurs.',
+  },
 };
 
 export const CATEGORIES = {

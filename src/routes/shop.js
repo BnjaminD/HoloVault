@@ -1,10 +1,14 @@
 import { Router } from 'express';
 import { flash, requireAuth } from '../middleware.js';
+import { GAMES } from '../lib/catalog.js';
+import { breadcrumbJsonLd, gamePath, organizationJsonLd, productDescription, productJsonLd } from '../lib/seo.js';
 import { shopQuerySchema, stockAlertSchema } from '../lib/validation.js';
 
 const PAGE_SIZE = 12;
+// Filters that only narrow or reorder a listing: such pages are crawlable but must not be indexed.
+const isRefined = (f) => !!(f.q || f.category || f.condition || f.minPrice != null || f.maxPrice != null || f.inStock || f.sort !== 'new');
 
-export function shopRoutes({ db, limiters }) {
+export function shopRoutes({ db, config, limiters }) {
   const router = Router();
 
   router.get('/', (req, res) => {
@@ -13,11 +17,27 @@ export function shopRoutes({ db, limiters }) {
     const gameCounts = Object.fromEntries(
       db.prepare('SELECT game, COUNT(*) AS n FROM products WHERE active = 1 GROUP BY game').all().map((r) => [r.game, r.n]),
     );
-    res.render('home', { title: 'Cartes rares & collection', featured, latest, gameCounts });
+    res.render('home', {
+      title: 'Cartes rares & collection', featured, latest, gameCounts,
+      structuredData: [organizationJsonLd({ baseUrl: config.baseUrl, shopName: config.shopName })],
+    });
   });
 
-  router.get('/boutique', (req, res) => {
+  // Old filter URL for a whole game → permanent redirect to its dedicated page.
+  router.get('/boutique', (req, res, next) => {
     const f = shopQuerySchema.parse(req.query);
+    if (!f.game || isRefined(f)) return next();
+    res.redirect(301, gamePath(f.game) + (f.page > 1 ? `?page=${f.page}` : ''));
+  });
+
+  router.get('/boutique', (req, res) => renderListing(req, res, shopQuerySchema.parse(req.query)));
+
+  router.get('/boutique/:game', (req, res, next) => {
+    if (!Object.hasOwn(GAMES, req.params.game)) return next();
+    renderListing(req, res, shopQuerySchema.parse({ ...req.query, game: req.params.game }));
+  });
+
+  function renderListing(req, res, f) {
     const where = ['active = 1'];
     const params = [];
     if (f.q) {
@@ -55,10 +75,25 @@ export function shopRoutes({ db, limiters }) {
       .prepare(`SELECT * FROM products WHERE ${whereSql} ORDER BY ${order} LIMIT ? OFFSET ?`)
       .all(...params, PAGE_SIZE, (page - 1) * PAGE_SIZE);
 
+    const basePath = f.game ? gamePath(f.game) : '/boutique';
     const query = new URLSearchParams();
-    for (const [k, v] of Object.entries(f)) if (v != null && v !== '' && k !== 'page') query.set(k, String(v));
-    res.render('shop', { title: 'Boutique', products, filters: f, total, page, pages, baseQuery: query.toString() });
-  });
+    for (const [k, v] of Object.entries(f)) {
+      if (v == null || v === '' || k === 'page' || (k === 'game' && f.game) || (k === 'sort' && v === 'new')) continue;
+      query.set(k, String(v));
+    }
+    const refined = isRefined(f);
+    const game = f.game && GAMES[f.game];
+    const pageSuffix = page > 1 ? ` — page ${page}` : '';
+    res.render('shop', {
+      title: (game ? `Cartes ${game.label}` : 'Boutique') + pageSuffix,
+      description: game?.intro,
+      intro: !refined && page === 1 ? game?.intro : null,
+      canonical: refined ? basePath : basePath + (page > 1 ? `?page=${page}` : ''),
+      robots: refined ? 'noindex,follow' : null,
+      structuredData: game ? [breadcrumbJsonLd(config.baseUrl, [['Accueil', '/'], ['Boutique', '/boutique'], [game.label]])] : [],
+      products, filters: f, total, page, pages, basePath, baseQuery: query.toString(),
+    });
+  }
 
   router.get('/produit/:slug', (req, res, next) => {
     const product = db.prepare('SELECT * FROM products WHERE slug = ? AND active = 1').get(String(req.params.slug));
@@ -69,7 +104,18 @@ export function shopRoutes({ db, limiters }) {
     const inWishlist = res.locals.user
       ? !!db.prepare('SELECT 1 FROM wishlist WHERE user_id = ? AND product_id = ?').get(res.locals.user.id, product.id)
       : false;
-    res.render('product', { title: product.name, product, related, inWishlist });
+    const game = GAMES[product.game];
+    res.render('product', {
+      title: `${product.name}${product.set_name ? ` — ${product.set_name}` : ''}`,
+      description: productDescription(product),
+      ogType: 'product',
+      ogImage: product.image_path || null,
+      structuredData: [
+        productJsonLd(product, { baseUrl: config.baseUrl, shopName: config.shopName }),
+        breadcrumbJsonLd(config.baseUrl, [['Accueil', '/'], [game.label, gamePath(product.game)], [product.name]]),
+      ],
+      product, related, inWishlist,
+    });
   });
 
   router.post('/produit/:slug/alerte', limiters.form, (req, res, next) => {

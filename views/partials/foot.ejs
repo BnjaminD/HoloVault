@@ -9,7 +9,7 @@
       <div>
         <h4>Boutique</h4>
         <ul>
-          <% for (const [key, g] of Object.entries(GAMES)) { %><li><a href="/boutique?game=<%= key %>"><%= g.label %></a></li><% } %>
+          <% for (const [key, g] of Object.entries(GAMES)) { %><li><a href="<%= gamePath(key) %>"><%= g.label %></a></li><% } %>
         </ul>
       </div>
       <div>

@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import { randomBytes } from 'node:crypto';
 import { ROOT } from './config.js';
 import * as catalog from './lib/catalog.js';
+import { gamePath, isPrivatePath, jsonLd } from './lib/seo.js';
 import { setScryptCost } from './lib/security.js';
 import { SqliteSessionStore } from './lib/session-store.js';
 import { createLimiters, csrfProtection, ensureLayoutLocals, loadLocals, wantsJson } from './middleware.js';
@@ -13,6 +14,7 @@ import { authRoutes } from './routes/auth.js';
 import { cartRoutes } from './routes/cart.js';
 import { checkoutRoutes, paypalWebhookRoute } from './routes/checkout.js';
 import { pageRoutes } from './routes/pages.js';
+import { seoRoutes } from './routes/seo.js';
 import { shopRoutes } from './routes/shop.js';
 
 const SESSION_TTL_MS = 3 * 24 * 60 * 60 * 1000;
@@ -32,6 +34,10 @@ export function createApp({ db, config, paypal, mailer, disableRateLimit = false
 
   Object.assign(app.locals, {
     shopName: config.shopName,
+    baseUrl: config.baseUrl,
+    gamePath,
+    isPrivatePath,
+    jsonLd,
     paypalMode: paypal.mode,
     ...catalog,
   });
@@ -86,9 +92,8 @@ export function createApp({ db, config, paypal, mailer, disableRateLimit = false
       res.status(503).json({ status: 'error' });
     }
   });
-  app.get('/robots.txt', (req, res) => res.type('text/plain').send('User-agent: *\nDisallow: /admin\nDisallow: /compte\nDisallow: /api\n'));
-
   app.use(limiters.global);
+  app.use(seoRoutes(ctx));
 
   // Webhook first: it is authenticated by PayPal's signature, not by session/CSRF.
   app.use('/api/paypal/webhook', express.json({ limit: '200kb' }), paypalWebhookRoute(ctx));

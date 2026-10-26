@@ -45,7 +45,7 @@
     <div class="section-head"><div><span class="eyebrow">Univers</span><h2>Choisissez votre jeu</h2></div></div>
     <div class="game-tiles">
       <% for (const [key, g] of Object.entries(GAMES)) { %>
-        <a class="game-tile game-<%= key %>" href="/boutique?game=<%= key %>">
+        <a class="game-tile game-<%= key %>" href="<%= gamePath(key) %>">
           <span class="sym" aria-hidden="true"><%= g.symbol %></span>
           <strong><%= g.label %></strong>
           <span><%= gameCounts[key] || 0 %> référence<%= (gameCounts[key] || 0) > 1 ? 's' : '' %></span>
