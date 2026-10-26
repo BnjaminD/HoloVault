@@ -2,6 +2,7 @@ import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import { openDb } from '../src/db/index.js';
+import { createMailer } from '../src/lib/mailer.js';
 import { createPayPalClient } from '../src/lib/paypal.js';
 import { hashSecret, setScryptCost } from '../src/lib/security.js';
 import { mkdtempSync } from 'node:fs';
@@ -18,7 +19,21 @@ function fakeMailer() {
   });
 }
 
-export function setup({ rateLimit = false, paypal } = {}) {
+// Records what a real mailer hands to SMTP; set `fail` to simulate an outage.
+export function fakeTransport() {
+  const transport = {
+    fail: false,
+    sent: [],
+    async sendMail(message) {
+      if (transport.fail) throw new Error('SMTP indisponible');
+      transport.sent.push(message);
+    },
+  };
+  return transport;
+}
+
+// `mailTransport`: use the real outbox-backed mailer over that transport instead of the recording fake.
+export function setup({ rateLimit = false, paypal, mailTransport } = {}) {
   const config = loadConfig({
     env: 'test',
     databasePath: ':memory:',
@@ -29,7 +44,9 @@ export function setup({ rateLimit = false, paypal } = {}) {
   });
   setScryptCost(config.scryptCost);
   const db = openDb(':memory:');
-  const mailer = fakeMailer();
+  const mailer = mailTransport
+    ? createMailer({ ...config, shopName: 'Test' }, db, { transport: mailTransport })
+    : fakeMailer();
   const pp = paypal ?? createPayPalClient(config.paypal, { shopName: 'Test' });
   const app = createApp({ db, config, paypal: pp, mailer, disableRateLimit: !rateLimit });
   return { app, db, mailer, paypal: pp, config };

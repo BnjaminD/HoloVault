@@ -96,7 +96,7 @@ export function checkoutRoutes({ db, paypal, mailer, limiters }) {
     }
 
     const full = getOrderWithItems(db, order.id);
-    mailer.orderConfirmation(full, pending.accessCode).catch(() => {});
+    mailer.orderConfirmation(full, pending.accessCode);
     req.session.cart = {};
     delete req.session.pendingOrder;
     req.session.lastOrder = { id: order.id, reference: order.reference, accessCode: pending.accessCode };
@@ -148,7 +148,7 @@ export function paypalWebhookRoute({ db, paypal, mailer }) {
           break;
         }
         if (markOrderPaid(db, order.id, resource.id)) {
-          mailer.orderStatus(order, 'Payée').catch(() => {});
+          mailer.orderStatus(order, 'Payée');
         } else if (order.status === 'cancelled' && order.paypal_capture_id !== resource.id) {
           // Paid after the 30 min hold expired: the stock is back on sale, a human must refund or re-reserve.
           db.prepare('UPDATE orders SET paypal_capture_id = ?, updated_at = ? WHERE id = ?').run(resource.id, Date.now(), order.id);

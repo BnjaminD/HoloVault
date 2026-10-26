@@ -98,7 +98,11 @@ export function adminRoutes({ db, config, mailer }) {
   function uniqueSlug(name, ignoreId = 0) {
     const base = slugify(name) || 'produit';
     let slug = base;
-    for (let i = 2; db.prepare('SELECT 1 FROM products WHERE slug = ? AND id != ?').get(slug, ignoreId); i++) slug = `${base}-${i}`;
+    // Former slugs of other products stay reserved: their old links must keep redirecting to them.
+    const taken = db.prepare(
+      'SELECT 1 FROM products WHERE slug = ? AND id != ? UNION ALL SELECT 1 FROM product_slug_history WHERE slug = ? AND product_id != ?',
+    );
+    for (let i = 2; taken.get(slug, ignoreId, slug, ignoreId); i++) slug = `${base}-${i}`;
     return slug;
   }
 
@@ -154,20 +158,29 @@ export function adminRoutes({ db, config, mailer }) {
     const removeCurrent = req.body.removeImage === 'on';
     const imagePath = image ?? (removeCurrent ? '' : existing.image_path);
     if (image || removeCurrent) removeImage(existing.image_path);
-    db.prepare(
-      `UPDATE products SET slug = ?, name = ?, game = ?, category = ?, set_name = ?, card_number = ?, rarity = ?, condition = ?, language = ?,
-         grading = ?, description = ?, price_cents = ?, stock = ?, is_featured = ?, image_path = ?, active = ?, updated_at = ? WHERE id = ?`,
-    ).run(
-      d.name === existing.name ? existing.slug : uniqueSlug(d.name, existing.id), d.name, d.game, d.category, d.setName, d.cardNumber,
-      d.rarity, d.condition, d.language, d.grading, d.description, Math.round(d.price * 100), d.stock, d.isFeatured ? 1 : 0,
-      imagePath, d.active ? 1 : 0, Date.now(), existing.id,
-    );
+    const slug = d.name === existing.name ? existing.slug : uniqueSlug(d.name, existing.id);
+    db.transaction(() => {
+      if (slug !== existing.slug) {
+        db.prepare('INSERT OR REPLACE INTO product_slug_history (slug, product_id, created_at) VALUES (?, ?, ?)').run(existing.slug, existing.id, Date.now());
+        db.prepare('DELETE FROM product_slug_history WHERE slug = ?').run(slug);
+      }
+      db.prepare(
+        `UPDATE products SET slug = ?, name = ?, game = ?, category = ?, set_name = ?, card_number = ?, rarity = ?, condition = ?, language = ?,
+           grading = ?, description = ?, price_cents = ?, stock = ?, is_featured = ?, image_path = ?, active = ?, updated_at = ? WHERE id = ?`,
+      ).run(
+        slug, d.name, d.game, d.category, d.setName, d.cardNumber,
+        d.rarity, d.condition, d.language, d.grading, d.description, Math.round(d.price * 100), d.stock, d.isFeatured ? 1 : 0,
+        imagePath, d.active ? 1 : 0, Date.now(), existing.id,
+      );
+    })();
 
     if (existing.stock === 0 && d.stock > 0 && d.active) {
       const product = db.prepare('SELECT * FROM products WHERE id = ?').get(existing.id);
       const alerts = db.prepare('SELECT email FROM stock_alerts WHERE product_id = ?').all(existing.id);
-      for (const { email } of alerts) mailer.stockAlert(email, product).catch(() => {});
-      db.prepare('DELETE FROM stock_alerts WHERE product_id = ?').run(existing.id);
+      // Queued in the outbox first, so a subscriber is only dropped once their e-mail is safely stored.
+      for (const { email } of alerts) {
+        if (mailer.stockAlert(email, product)) db.prepare('DELETE FROM stock_alerts WHERE product_id = ? AND email = ?').run(existing.id, email);
+      }
       if (alerts.length) flash(req, 'info', `${alerts.length} client(s) prévenu(s) du retour en stock.`);
     }
     flash(req, 'success', 'Produit mis à jour.');
@@ -233,7 +246,7 @@ export function adminRoutes({ db, config, mailer }) {
     })();
 
     if (status !== order.status) {
-      mailer.orderStatus({ ...order, tracking_number: trackingNumber }, ORDER_STATUSES[status]).catch(() => {});
+      mailer.orderStatus({ ...order, tracking_number: trackingNumber }, ORDER_STATUSES[status]);
     }
     flash(req, 'success', 'Commande mise à jour.');
     res.redirect(`/admin/commandes/${order.id}`);

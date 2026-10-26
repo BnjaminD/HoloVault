@@ -97,7 +97,12 @@ export function shopRoutes({ db, config, limiters }) {
 
   router.get('/produit/:slug', (req, res, next) => {
     const product = db.prepare('SELECT * FROM products WHERE slug = ? AND active = 1').get(String(req.params.slug));
-    if (!product) return next();
+    if (!product) {
+      const moved = db
+        .prepare('SELECT p.slug FROM product_slug_history h JOIN products p ON p.id = h.product_id WHERE h.slug = ? AND p.active = 1')
+        .get(String(req.params.slug));
+      return moved ? res.redirect(301, `/produit/${moved.slug}`) : next();
+    }
     const related = db
       .prepare('SELECT * FROM products WHERE active = 1 AND game = ? AND id != ? AND stock > 0 ORDER BY RANDOM() LIMIT 4')
       .all(product.game, product.id);

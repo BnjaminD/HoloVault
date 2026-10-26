@@ -88,3 +88,6 @@ sudo systemctl start holovault
 - `GET /healthz` → `{"status":"ok"}` (200) ou 503 si la base est inaccessible. À brancher sur un moniteur externe
   (UptimeRobot, Better Stack…).
 - Journaux : `journalctl -u holovault -f`.
+- E-mails : chaque message passe par la table `email_outbox` et est réessayé jusqu'à 8 fois (≈ 10 h) en cas de panne
+  SMTP. Messages abandonnés :
+  `sqlite3 data/shop.db "SELECT id, recipient, subject, last_error FROM email_outbox WHERE failed_at IS NOT NULL"`.
