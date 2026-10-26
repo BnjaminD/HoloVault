@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Déploie une révision sur le serveur : sauvegarde → code → dépendances → migrations → redémarrage → healthcheck.
+# Déploie une révision sur le serveur : code → sauvegarde → dépendances → migrations → redémarrage → healthcheck.
 # En cas d'échec, revient automatiquement à la révision précédente.
 # Lancé par .github/workflows/deploy.yml :  ssh user@vps "bash -s -- <sha> <dossier>" < scripts/deploy.sh
 set -euo pipefail
@@ -32,14 +32,15 @@ rollback() {
   exit 1
 }
 
-step "Sauvegarde de la base"
-BACKUP_ALLOW_MISSING=1 npm run -s backup
-
 step "Récupération de ${REF}"
 git fetch --quiet --tags origin
 git checkout --quiet --detach "$REF"
 
 trap rollback ERR
+# Run with the incoming code (the running version may predate the backup script), before any migration.
+step "Sauvegarde de la base"
+BACKUP_ALLOW_MISSING=1 npm run -s backup
+
 step "Dépendances"
 npm ci --omit=dev --no-audit --no-fund
 

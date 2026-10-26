@@ -35,8 +35,8 @@ holovault ALL=(root) NOPASSWD: /usr/bin/systemctl restart holovault
 
 Le script [`scripts/deploy.sh`](../scripts/deploy.sh) exécuté sur le serveur :
 
-1. sauvegarde la base ;
-2. récupère la révision (`git fetch` + `checkout`) ;
+1. récupère la révision (`git fetch` + `checkout`) ;
+2. sauvegarde la base ;
 3. `npm ci --omit=dev`, puis migrations ;
 4. redémarre le service et attend `/healthz` ;
 5. **en cas d'échec, revient automatiquement à la révision précédente.**
